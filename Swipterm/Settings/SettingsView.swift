@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiptermKit
 import UIKit
 
 struct SettingsView: View {
@@ -16,6 +17,7 @@ struct SettingsView: View {
     @State private var newContainerDraft = SetupDraft()
     @State private var isCreatingContainer = false
     @State private var isImportingContainer = false
+    @State private var gpuBackends: [LinuxRuntime.GPUBackend] = []
 
     var body: some View {
         Form {
@@ -34,6 +36,23 @@ struct SettingsView: View {
                     ForEach(Self.memoryLimits, id: \.self) { size in
                         Text(Int64(size), format: .byteCount(style: .memory))
                             .tag(UInt64?.some(size))
+                    }
+                }
+                Picker("GPU", selection: $settings.gpuMode) {
+                    ForEach(gpuModes, id: \.self) { mode in
+                        Group {
+                            switch mode {
+                            case .automatic:
+                                Text("Automatic")
+                            case .moltenVK:
+                                Text(verbatim: "MoltenVK")
+                            case .kosmicKrisp:
+                                Text(verbatim: "KosmicKrisp")
+                            case .disabled:
+                                Text("Disabled")
+                            }
+                        }
+                        .tag(mode)
                     }
                 }
                 #if DEBUG || SIDELOAD
@@ -114,6 +133,9 @@ struct SettingsView: View {
             }
             Button("OK", role: .cancel) {}
         }
+        .task {
+            gpuBackends = await Task.detached { LinuxRuntime.availableGPUBackends }.value
+        }
         .onAppear {
             location.isSettingsVisible = true
         }
@@ -121,6 +143,14 @@ struct SettingsView: View {
             location.isSettingsVisible = false
             location.isPresentingDeniedAlert = false
         }
+    }
+
+    private var gpuModes: [GPUMode] {
+        var modes: [GPUMode] = [.automatic] + gpuBackends.map(GPUMode.init) + [.disabled]
+        if !modes.contains(settings.gpuMode) {
+            modes.insert(settings.gpuMode, at: modes.count - 1)
+        }
+        return modes
     }
 
     private var caffeinateToggle: some View {

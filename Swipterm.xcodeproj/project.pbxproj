@@ -435,6 +435,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-Wl,-dead_strip_dylibs",
+				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.nekohasekai.swipterm;
 				PRODUCT_NAME = Swipterm;
@@ -479,6 +483,10 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-Wl,-dead_strip_dylibs",
 				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.nekohasekai.swipterm;
@@ -571,7 +579,7 @@
 			repositoryURL = "https://github.com/swipt-automation/SwiptermKit";
 			requirement = {
 				kind = upToNextMinorVersion;
-				minimumVersion = 0.2.2026112502;
+				minimumVersion = 0.2.2026112601;
 			};
 		};
 		5D0000000000000000000A06 /* XCRemoteSwiftPackageReference "GRDB" */ = {

@@ -811,6 +811,7 @@ final class LinuxSystem {
             hostname: metadata.name,
             memorySize: engine.memoryLimit,
             cpuCount: engine.cpuLimit,
+            gpu: engine.gpu,
             consoleOutput: { data in
                 let chunk = normalizer.normalize(data)
                 guard !chunk.isEmpty else { return }
@@ -1116,6 +1117,7 @@ final class LinuxSystem {
 
     private func handleDidEnterBackground() {
         isInBackground = true
+        LinuxRuntime.suspendGPU()
         guard backgroundTaskID == .invalid else { return }
         backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "Swipterm.LinuxRuntime") { [weak self] in
             MainActor.assumeIsolated {
@@ -1134,6 +1136,7 @@ final class LinuxSystem {
     private func handleWillEnterForeground() {
         isInBackground = false
         endBackgroundTaskIfNeeded()
+        LinuxRuntime.resumeGPU()
         if isSuspended {
             isSuspended = false
             runtime?.resume()

@@ -1,5 +1,22 @@
 import Foundation
 import Observation
+import SwiptermKit
+
+nonisolated enum GPUMode: String, Codable, Hashable, Sendable {
+    case automatic
+    case moltenVK
+    case kosmicKrisp
+    case disabled
+
+    init(_ backend: LinuxRuntime.GPUBackend) {
+        switch backend {
+        case .moltenVK:
+            self = .moltenVK
+        case .kosmicKrisp:
+            self = .kosmicKrisp
+        }
+    }
+}
 
 @Observable
 final class AppSettings {
@@ -19,6 +36,7 @@ final class AppSettings {
         static let fontSize = "fontSize"
         static let cpuLimit = "cpuLimit"
         static let memoryLimit = "memoryLimit"
+        static let gpuMode = "gpuMode"
         static let caffeinateAvailable = "caffeinateAvailable"
         static let caffeinateEnabled = "caffeinateEnabled"
         static let shortcuts = "shortcuts"
@@ -60,13 +78,31 @@ final class AppSettings {
         didSet { store.set(memoryLimit, for: Key.memoryLimit) }
     }
 
+    var gpuMode: GPUMode {
+        didSet { store.set(gpuMode, for: Key.gpuMode) }
+    }
+
     struct EngineConfiguration: Equatable {
         var cpuLimit: Int?
         var memoryLimit: UInt64?
+        var gpuMode: GPUMode
+
+        var gpu: LinuxRuntime.GPUConfiguration? {
+            switch gpuMode {
+            case .automatic:
+                .automatic
+            case .moltenVK:
+                .specific(.moltenVK)
+            case .kosmicKrisp:
+                .specific(.kosmicKrisp)
+            case .disabled:
+                nil
+            }
+        }
     }
 
     var engineConfiguration: EngineConfiguration {
-        EngineConfiguration(cpuLimit: cpuLimit, memoryLimit: memoryLimit)
+        EngineConfiguration(cpuLimit: cpuLimit, memoryLimit: memoryLimit, gpuMode: gpuMode)
     }
 
     var isCaffeinateAvailable: Bool {
@@ -93,6 +129,7 @@ final class AppSettings {
         fontSize = store.value(Double.self, for: Key.fontSize) ?? 10
         cpuLimit = store.value(Int?.self, for: Key.cpuLimit) ?? nil
         memoryLimit = store.value(UInt64?.self, for: Key.memoryLimit) ?? nil
+        gpuMode = store.value(GPUMode.self, for: Key.gpuMode) ?? .automatic
         isCaffeinateAvailable = store.value(Bool.self, for: Key.caffeinateAvailable) ?? false
         isCaffeinateEnabled = store.value(Bool.self, for: Key.caffeinateEnabled) ?? false
         shortcuts = store.value([TerminalShortcut].self, for: Key.shortcuts) ?? []
