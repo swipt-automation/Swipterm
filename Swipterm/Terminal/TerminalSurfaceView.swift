@@ -202,7 +202,7 @@ struct TerminalSurfaceView: View {
             if touches.contains(where: { $0.type == .indirectPointer }) {
                 forgetTypedText()
             }
-            if event!.touches(for: self)!.count == 1,
+            if (event?.touches(for: self) ?? touches).count == 1,
                let touch = touches.first,
                touch.type == .direct
             {
@@ -214,7 +214,7 @@ struct TerminalSurfaceView: View {
         }
 
         override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-            if event!.touches(for: self)!.count == 1,
+            if (event?.touches(for: self) ?? touches).count == 1,
                let touch = touches.first,
                touch.type == .direct
             {

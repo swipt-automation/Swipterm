@@ -231,7 +231,7 @@ final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
         let box = Box()
         let semaphore = DispatchSemaphore(value: 0)
         _ = provider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { data, error in
-            box.result = data.map(Result.success) ?? .failure(error!)
+            box.result = data.map(Result.success) ?? .failure(error ?? CocoaError(.fileReadUnknown))
             semaphore.signal()
         }
         semaphore.wait()

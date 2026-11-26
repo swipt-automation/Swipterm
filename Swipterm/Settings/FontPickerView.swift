@@ -18,7 +18,7 @@ struct FontPickerView: View {
         families = UIFont.familyNames
             .filter { family in
                 UIFont.fontNames(forFamilyName: family).contains { name in
-                    UIFont(name: name, size: 12)!.fontDescriptor.symbolicTraits.contains(.traitMonoSpace)
+                    UIFont(name: name, size: 12)?.fontDescriptor.symbolicTraits.contains(.traitMonoSpace) == true
                 }
             }
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
