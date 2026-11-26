@@ -105,11 +105,13 @@ nonisolated struct ImportedFont: Identifiable, Hashable, Sendable {
 }
 
 nonisolated extension URL {
-    func withSecurityScopedAccess<Result>(_ body: () throws -> Result) throws -> Result {
-        guard startAccessingSecurityScopedResource() else {
-            throw CocoaError(.fileReadNoPermission, userInfo: [NSURLErrorKey: self])
+    func withSecurityScopedAccess<Result>(_ body: () throws -> Result) rethrows -> Result {
+        let isAccessing = startAccessingSecurityScopedResource()
+        defer {
+            if isAccessing {
+                stopAccessingSecurityScopedResource()
+            }
         }
-        defer { stopAccessingSecurityScopedResource() }
         return try body()
     }
 }

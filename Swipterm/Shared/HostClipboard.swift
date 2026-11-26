@@ -252,9 +252,14 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
         "png", "jpg", "jpeg", "gif", "webp", "svg",
     ]
 
-    struct ProviderItem: @unchecked Sendable {
-        let provider: NSItemProvider
-        let type: UTType
+    enum Source: @unchecked Sendable {
+        case file(URL)
+        case provider(NSItemProvider, UTType)
+
+        init?(provider: NSItemProvider) {
+            guard let type = HostPasteStaging.stageableType(of: provider) else { return nil }
+            self = .provider(provider, type)
+        }
     }
 
     private let lock = NSLock()
@@ -307,23 +312,21 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
         if pasteboard.contains(pasteboardTypes: [UTType.fileURL.identifier]) {
             return true
         }
-        return stageableType(among: pasteboard.types) != nil
+        return stageableType(among: pasteboard.types.compactMap(UTType.init)) != nil
     }
 
-    static func stageableType(among identifiers: [String]) -> UTType? {
-        let types = identifiers.compactMap(UTType.init)
-        if let image = types.first(where: { $0.conforms(to: .image) }) {
-            return image
-        }
+    static func stageableType(of provider: NSItemProvider) -> UTType? {
+        provider.registeredContentTypesForOpenInPlace.first ?? stageableType(among: provider.registeredContentTypes)
+    }
+
+    private static func stageableType(among types: [UTType]) -> UTType? {
         if types.contains(where: { $0.conforms(to: .text) }) {
             return nil
         }
-        return types.first { type in
-            !type.isDynamic
-                && type.conforms(to: .data)
-                && !type.conforms(to: .text)
-                && !type.conforms(to: .url)
+        if let image = types.first(where: { $0.conforms(to: .image) }) {
+            return image
         }
+        return types.first { $0.conforms(to: .data) && !$0.conforms(to: .url) }
     }
 
     static func plainText(string: String?, urls: [URL]) -> String? {
@@ -371,28 +374,7 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
     }
 
     @MainActor
-    func stageFileURLs(_ urls: [URL], completion: @escaping @MainActor (Result<String?, any Error>) -> Void) {
-        DispatchQueue.global(qos: .userInitiated).async { [self] in
-            do {
-                try Self.prepareHostDirectory()
-                let staged = try urls.compactMap { url -> String? in
-                    let isAccessingSecurityScope = url.startAccessingSecurityScopedResource()
-                    defer {
-                        if isAccessingSecurityScope {
-                            url.stopAccessingSecurityScopedResource()
-                        }
-                    }
-                    return try stageSingleSourceFile(at: url, suggestedName: url.lastPathComponent, type: nil)
-                }
-                publishAndComplete(staged, completion: completion)
-            } catch {
-                DispatchQueue.main.async { completion(.failure(error)) }
-            }
-        }
-    }
-
-    @MainActor
-    func stageProviders(_ items: [ProviderItem], completion: @escaping @MainActor (Result<String?, any Error>) -> Void) {
+    func stage(_ sources: [Source], progress: Progress, completion: @escaping @MainActor (Result<String?, any Error>) -> Void) {
         do {
             try Self.prepareHostDirectory()
         } catch {
@@ -413,32 +395,70 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
             func compacted() throws -> [String] {
                 try lock.withLock { try values.compactMap { try $0.get() } }
             }
+
+            var stagedPaths: [String] {
+                lock.withLock {
+                    values.compactMap { try? $0.get() }
+                }
+            }
         }
-        let ordered = OrderedPaths(count: items.count)
+        progress.totalUnitCount = Int64(sources.count)
+        let ordered = OrderedPaths(count: sources.count)
         let group = DispatchGroup()
-        for (index, item) in items.enumerated() {
+        for (index, source) in sources.enumerated() {
             group.enter()
-            let suggested = item.provider.suggestedName
-            let itemType = item.type
-            item.provider.loadFileRepresentation(forTypeIdentifier: itemType.identifier) { [self] url, error in
-                defer { group.leave() }
-                ordered.set(Result {
-                    guard let url else { throw error! }
-                    return try stageSingleSourceFile(at: url, suggestedName: suggested, type: itemType)
-                }, at: index)
+            let itemProgress = Progress(totalUnitCount: 100, parent: progress, pendingUnitCount: 1)
+            switch source {
+            case let .file(url):
+                DispatchQueue.global(qos: .userInitiated).async { [self] in
+                    defer { group.leave() }
+                    let copyProgress = Progress(totalUnitCount: 0, parent: itemProgress, pendingUnitCount: 100)
+                    ordered.set(Result {
+                        try url.withSecurityScopedAccess {
+                            try stageSingleSourceFile(at: url, suggestedName: url.lastPathComponent, type: nil, progress: copyProgress)
+                        }
+                    }, at: index)
+                }
+            case let .provider(provider, type):
+                let suggestedName = provider.suggestedName
+                let loadProgress = provider.loadFileRepresentation(forTypeIdentifier: type.identifier) { [self] url, error in
+                    defer { group.leave() }
+                    let copyProgress = Progress(totalUnitCount: 0, parent: itemProgress, pendingUnitCount: 10)
+                    ordered.set(Result {
+                        guard let url else {
+                            throw error ?? CocoaError(.fileReadUnknown)
+                        }
+                        return try stageSingleSourceFile(at: url, suggestedName: suggestedName, type: type, progress: copyProgress)
+                    }, at: index)
+                }
+                itemProgress.addChild(loadProgress, withPendingUnitCount: 90)
             }
         }
         group.notify(queue: .global(qos: .userInitiated)) { @Sendable [self] in
+            if progress.isCancelled {
+                Self.removeStagedFiles(ordered.stagedPaths)
+                DispatchQueue.main.async { completion(.failure(CocoaError(.userCancelled))) }
+                return
+            }
             do {
                 try publishAndComplete(ordered.compacted(), completion: completion)
             } catch {
+                Self.removeStagedFiles(ordered.stagedPaths)
                 DispatchQueue.main.async { completion(.failure(error)) }
             }
         }
     }
 
-    private func stageSingleSourceFile(at sourceURL: URL, suggestedName: String?, type: UTType?) throws -> String? {
-        if try sourceURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory! {
+    private static func removeStagedFiles(_ guestPaths: [String]) {
+        let hostDir = hostDirectory
+        for guestPath in guestPaths {
+            try? FileManager.default.removeItem(at: hostDir.appending(path: (guestPath as NSString).lastPathComponent))
+        }
+    }
+
+    private func stageSingleSourceFile(at sourceURL: URL, suggestedName: String?, type: UTType?, progress: Progress) throws -> String? {
+        let resourceValues = try sourceURL.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey])
+        if resourceValues.isDirectory! {
             return nil
         }
         var resolvedType = type
@@ -449,6 +469,7 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
         let lowerExt = rawExtension.lowercased()
         let isImage = (resolvedType?.conforms(to: .image) ?? false)
             || UTType(filenameExtension: lowerExt)?.conforms(to: .image) == true
+        progress.totalUnitCount = Int64(resourceValues.fileSize!)
         if isImage, !Self.linuxNativeImageExtensions.contains(lowerExt) {
             guard let image = try UIImage(data: Data(contentsOf: sourceURL)) else {
                 throw CocoaError(.fileReadCorruptFile, userInfo: [NSURLErrorKey: sourceURL])
@@ -456,11 +477,37 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
             let png = Self.normalizedPNGData(for: image)
             return try storeFile(name: baseName, extension: "png") { destination in
                 try png.write(to: destination, options: .atomic)
+                progress.completedUnitCount = progress.totalUnitCount
             }
         }
         return try storeFile(name: baseName, extension: rawExtension) { destination in
-            try FileManager.default.copyItem(at: sourceURL, to: destination)
+            try Self.copyFile(from: sourceURL, to: destination, progress: progress)
         }
+    }
+
+    private static func copyFile(from source: URL, to destination: URL, progress: Progress) throws {
+        if progress.isCancelled {
+            throw CocoaError(.userCancelled)
+        }
+        if clonefile(source.path(percentEncoded: false), destination.path(percentEncoded: false), 0) == 0 {
+            progress.completedUnitCount = progress.totalUnitCount
+            return
+        }
+        let input = try FileHandle(forReadingFrom: source)
+        FileManager.default.createFile(atPath: destination.path(percentEncoded: false), contents: nil)
+        let output = try FileHandle(forWritingTo: destination)
+        while let chunk = try input.read(upToCount: 1 << 20), !chunk.isEmpty {
+            if progress.isCancelled {
+                try? output.close()
+                try? input.close()
+                try FileManager.default.removeItem(at: destination)
+                throw CocoaError(.userCancelled)
+            }
+            try output.write(contentsOf: chunk)
+            progress.completedUnitCount += Int64(chunk.count)
+        }
+        try output.close()
+        try input.close()
     }
 
     private func storeFile(name: String, extension fileExtension: String, write: (URL) throws -> Void) throws -> String {

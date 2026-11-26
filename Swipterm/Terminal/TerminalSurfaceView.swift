@@ -395,49 +395,42 @@ struct TerminalSurfaceView: View {
             }
             forgetTypedText()
             let pasteboard = UIPasteboard.general
+            let sources = pasteboard.itemProviders.compactMap(HostPasteStaging.Source.init(provider:))
+            if !sources.isEmpty {
+                receive(sources)
+                return
+            }
+
             let fileURLs = HostPasteStaging.fileURLs(in: pasteboard)
             if !fileURLs.isEmpty {
-                HostPasteStaging.shared.stageFileURLs(fileURLs) { [weak self] result in
-                    guard let self else { return }
+                receive(fileURLs.map(HostPasteStaging.Source.file))
+                return
+            }
+
+            if let text = HostPasteStaging.plainText(
+                string: pasteboard.hasStrings ? pasteboard.string : nil,
+                urls: pasteboard.hasURLs ? (pasteboard.urls ?? []) : []
+            ) {
+                _ = pasteWithProtection(text: text)
+            }
+        }
+
+        fileprivate func receive(_ sources: [HostPasteStaging.Source]) {
+            let progress = Progress()
+            let alert = TransferProgressAlert(progress: progress)
+            alert.present(from: self)
+            HostPasteStaging.shared.stage(sources, progress: progress) { [weak self] result in
+                Task {
+                    await alert.dismiss()
+                    guard let self, !progress.isCancelled else { return }
                     do {
                         guard let paths = try result.get() else { return }
-                        _ = paste(text: paths)
+                        self.forgetTypedText()
+                        _ = self.paste(text: paths)
                     } catch {
-                        onPasteFailure?(error)
+                        self.onPasteFailure?(error)
                     }
                 }
-                return
-            }
-
-            if pasteboard.hasStrings,
-               let text = HostPasteStaging.plainText(
-                   string: pasteboard.string,
-                   urls: pasteboard.hasURLs ? (pasteboard.urls ?? []) : []
-               )
-            {
-                _ = pasteWithProtection(text: text)
-                return
-            }
-
-            let providerItems = pasteboard.itemProviders.compactMap { provider in
-                HostPasteStaging.stageableType(among: provider.registeredTypeIdentifiers)
-                    .map { HostPasteStaging.ProviderItem(provider: provider, type: $0) }
-            }
-            if !providerItems.isEmpty {
-                HostPasteStaging.shared.stageProviders(providerItems) { [weak self] result in
-                    guard let self else { return }
-                    do {
-                        guard let paths = try result.get() else { return }
-                        _ = paste(text: paths)
-                    } catch {
-                        onPasteFailure?(error)
-                    }
-                }
-                return
-            }
-
-            if pasteboard.hasURLs, let text = HostPasteStaging.plainText(string: nil, urls: pasteboard.urls ?? []) {
-                _ = pasteWithProtection(text: text)
             }
         }
 
@@ -1016,9 +1009,7 @@ struct TerminalSurfaceView: View {
         }
 
         func dropInteraction(_: UIDropInteraction, canHandle session: any UIDropSession) -> Bool {
-            session.items.contains { item in
-                HostPasteStaging.stageableType(among: item.itemProvider.registeredTypeIdentifiers) != nil
-            }
+            session.items.contains { HostPasteStaging.stageableType(of: $0.itemProvider) != nil }
                 || session.canLoadObjects(ofClass: NSURL.self)
                 || session.canLoadObjects(ofClass: NSString.self)
         }
@@ -1028,21 +1019,11 @@ struct TerminalSurfaceView: View {
         }
 
         func dropInteraction(_: UIDropInteraction, performDrop session: any UIDropSession) {
-            let providerItems = session.items.compactMap { item in
-                HostPasteStaging.stageableType(among: item.itemProvider.registeredTypeIdentifiers)
-                    .map { HostPasteStaging.ProviderItem(provider: item.itemProvider, type: $0) }
-            }
-            if !providerItems.isEmpty {
-                HostPasteStaging.shared.stageProviders(providerItems) { [weak surfaceView] result in
-                    guard let surfaceView else { return }
-                    do {
-                        guard let paths = try result.get() else { return }
-                        surfaceView.forgetTypedText()
-                        _ = surfaceView.paste(text: paths)
-                    } catch {
-                        surfaceView.onPasteFailure?(error)
-                    }
-                }
+            guard let surfaceView else { return }
+            let sources = session.items.compactMap { HostPasteStaging.Source(provider: $0.itemProvider) }
+            if !sources.isEmpty {
+                session.progressIndicatorStyle = .none
+                surfaceView.receive(sources)
                 return
             }
 
@@ -1052,16 +1033,7 @@ struct TerminalSurfaceView: View {
                     let urls = objects.compactMap { ($0 as? NSURL).map { $0 as URL } }
                     let fileURLs = urls.filter(\.isFileURL)
                     if !fileURLs.isEmpty {
-                        HostPasteStaging.shared.stageFileURLs(fileURLs) { [weak surfaceView] result in
-                            guard let surfaceView else { return }
-                            do {
-                                guard let paths = try result.get() else { return }
-                                surfaceView.forgetTypedText()
-                                _ = surfaceView.paste(text: paths)
-                            } catch {
-                                surfaceView.onPasteFailure?(error)
-                            }
-                        }
+                        surfaceView?.receive(fileURLs.map(HostPasteStaging.Source.file))
                         return
                     }
                     let deliver: @Sendable (String?) -> Void = { string in
