@@ -31,7 +31,7 @@ struct ContainerView: View {
                     }
                 }
             }
-            Section {
+            Section("Actions") {
                 if !isActive {
                     Button("Activate") {
                         dismissSettings()
@@ -68,7 +68,7 @@ struct ContainerView: View {
             }
         }
         .background {
-            ExportProgressAlert(progress: system.exportProgress) {
+            ExportProgressAlert(containerName: container.metadata.name, progress: system.exportProgress) {
                 exportTask?.cancel()
             } onDismiss: {
                 isSavingArchive = exportedArchiveURL != nil
@@ -108,12 +108,13 @@ struct ContainerView: View {
 }
 
 private struct ExportProgressAlert: UIViewControllerRepresentable {
+    let containerName: String
     let progress: Double?
     let onCancel: () -> Void
     let onDismiss: () -> Void
 
     final class Coordinator {
-        var alert: UIAlertController?
+        var alert: ProgressAlert?
     }
 
     func makeCoordinator() -> Coordinator {
@@ -128,20 +129,17 @@ private struct ExportProgressAlert: UIViewControllerRepresentable {
         guard let progress else {
             if let alert = context.coordinator.alert {
                 context.coordinator.alert = nil
-                alert.dismiss(animated: true, completion: onDismiss)
+                alert.controller.dismiss(animated: true, completion: onDismiss)
             }
             return
         }
-        let message = progress.formatted(.percent.precision(.fractionLength(0)))
         if let alert = context.coordinator.alert {
-            alert.message = message
+            alert.update(progress)
         } else {
-            let alert = UIAlertController(title: String(localized: "Exporting…"), message: message, preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: String(localized: "Cancel"), style: .cancel) { _ in
-                onCancel()
-            })
+            let alert = ProgressAlert(title: String(localized: "Exporting \(containerName)…"), onCancel: onCancel)
+            alert.update(progress)
             context.coordinator.alert = alert
-            controller.present(alert, animated: true)
+            controller.present(alert.controller, animated: true)
         }
     }
 }
