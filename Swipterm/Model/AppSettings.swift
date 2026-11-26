@@ -17,6 +17,19 @@ nonisolated enum GPUMode: String, Codable, Hashable, Sendable {
             self = .kosmicKrisp
         }
     }
+
+    var configuration: LinuxRuntime.GPUConfiguration? {
+        switch self {
+        case .automatic:
+            .automatic
+        case .moltenVK:
+            .specific(.moltenVK)
+        case .kosmicKrisp:
+            .specific(.kosmicKrisp)
+        case .disabled:
+            nil
+        }
+    }
 }
 
 @Observable
@@ -35,8 +48,6 @@ final class AppSettings {
         static let fontFollowTheme = "fontFollowTheme"
         static let fontFamily = "fontFamily"
         static let fontSize = "fontSize"
-        static let cpuLimit = "cpuLimit"
-        static let memoryLimit = "memoryLimit"
         static let gpuMode = "gpuMode"
         static let caffeinateAvailable = "caffeinateAvailable"
         static let caffeinateEnabled = "caffeinateEnabled"
@@ -71,39 +82,8 @@ final class AppSettings {
         didSet { saveTerminalAppearance(fontSize, for: Key.fontSize) }
     }
 
-    var cpuLimit: Int? {
-        didSet { store.set(cpuLimit, for: Key.cpuLimit) }
-    }
-
-    var memoryLimit: UInt64? {
-        didSet { store.set(memoryLimit, for: Key.memoryLimit) }
-    }
-
     var gpuMode: GPUMode {
         didSet { store.set(gpuMode, for: Key.gpuMode) }
-    }
-
-    struct EngineConfiguration: Equatable {
-        var cpuLimit: Int?
-        var memoryLimit: UInt64?
-        var gpuMode: GPUMode
-
-        var gpu: LinuxRuntime.GPUConfiguration? {
-            switch gpuMode {
-            case .automatic:
-                .automatic
-            case .moltenVK:
-                .specific(.moltenVK)
-            case .kosmicKrisp:
-                .specific(.kosmicKrisp)
-            case .disabled:
-                nil
-            }
-        }
-    }
-
-    var engineConfiguration: EngineConfiguration {
-        EngineConfiguration(cpuLimit: cpuLimit, memoryLimit: memoryLimit, gpuMode: gpuMode)
     }
 
     var isCaffeinateAvailable: Bool {
@@ -128,8 +108,6 @@ final class AppSettings {
         fontFollowTheme = store.value(Bool.self, for: Key.fontFollowTheme) ?? true
         fontFamily = store.value(String.self, for: Key.fontFamily) ?? ""
         fontSize = store.value(Double.self, for: Key.fontSize) ?? 10
-        cpuLimit = store.value(Int?.self, for: Key.cpuLimit) ?? nil
-        memoryLimit = store.value(UInt64?.self, for: Key.memoryLimit) ?? nil
         gpuMode = store.value(GPUMode.self, for: Key.gpuMode) ?? .automatic
         isCaffeinateAvailable = store.value(Bool.self, for: Key.caffeinateAvailable) ?? false
         isCaffeinateEnabled = store.value(Bool.self, for: Key.caffeinateEnabled) ?? false
