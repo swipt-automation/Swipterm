@@ -22,21 +22,19 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                Picker("CPU Limit", selection: $settings.cpuLimit) {
-                    Text("No Limit")
-                        .tag(Int?.none)
-                    ForEach(Self.cpuLimits, id: \.self) { count in
-                        Text(count, format: .number)
-                            .tag(Int?.some(count))
-                    }
+                LimitSliderRow(
+                    title: "CPU Limit",
+                    selection: $settings.cpuLimit,
+                    limits: Self.cpuLimits
+                ) { count in
+                    Text(count, format: .number)
                 }
-                Picker("Memory Limit", selection: $settings.memoryLimit) {
-                    Text("No Limit")
-                        .tag(UInt64?.none)
-                    ForEach(Self.memoryLimits, id: \.self) { size in
-                        Text(Int64(size), format: .byteCount(style: .memory))
-                            .tag(UInt64?.some(size))
-                    }
+                LimitSliderRow(
+                    title: "Memory Limit",
+                    selection: $settings.memoryLimit,
+                    limits: Self.memoryLimits
+                ) { size in
+                    Text(Int64(size), format: .byteCount(style: .memory))
                 }
                 Picker("GPU", selection: $settings.gpuMode) {
                     ForEach(gpuModes, id: \.self) { mode in
@@ -159,5 +157,128 @@ struct SettingsView: View {
         } set: { isEnabled in
             location.setCaffeinateEnabled(isEnabled)
         })
+    }
+}
+
+private struct LimitSliderRow<Value: BinaryInteger>: View {
+    let title: LocalizedStringKey
+    @Binding var selection: Value?
+    let limits: [Value]
+    let formatValue: (Value) -> Text
+
+    @State private var draftIndex: Double?
+    @State private var isEditing = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            LabeledContent(title) {
+                valueText
+                    .monospacedDigit()
+            }
+            .accessibilityHidden(true)
+            slider
+        }
+        .padding(.vertical, 2)
+        .onDisappear {
+            if let draftIndex {
+                commit(draftIndex)
+                self.draftIndex = nil
+            }
+            isEditing = false
+        }
+    }
+
+    @ViewBuilder
+    private var slider: some View {
+        let upperBound = Double(limits.count)
+        let binding = Binding<Double> {
+            currentIndex
+        } set: { newValue in
+            if isEditing {
+                draftIndex = newValue
+            } else {
+                commit(newValue)
+            }
+        }
+        if #available(iOS 26.0, *) {
+            Slider(
+                value: binding,
+                in: 0 ... upperBound,
+                step: 1,
+                label: { Text(title) },
+                tick: { SliderTick($0) },
+                onEditingChanged: handleEditingChanged
+            )
+            .accessibilityValue(valueText)
+        } else {
+            Slider(
+                value: binding,
+                in: 0 ... upperBound,
+                step: 1,
+                label: { Text(title) },
+                onEditingChanged: handleEditingChanged
+            )
+            .sensoryFeedback(.selection, trigger: Int(currentIndex.rounded()))
+            .accessibilityValue(valueText)
+        }
+    }
+
+    private var valueText: Text {
+        if let value = displayedValue {
+            formatValue(value)
+        } else {
+            Text("No Limit")
+        }
+    }
+
+    private var currentIndex: Double {
+        draftIndex ?? index(for: selection)
+    }
+
+    private var displayedValue: Value? {
+        if let draftIndex {
+            return value(for: draftIndex)
+        }
+        return selection
+    }
+
+    private func handleEditingChanged(_ editing: Bool) {
+        isEditing = editing
+        if editing {
+            draftIndex = index(for: selection)
+        } else if let draftIndex {
+            commit(draftIndex)
+            self.draftIndex = nil
+        }
+    }
+
+    private func commit(_ index: Double) {
+        let next = value(for: index)
+        if selection != next {
+            selection = next
+        }
+    }
+
+    private func index(for value: Value?) -> Double {
+        guard let value else {
+            return Double(limits.count)
+        }
+        if let exact = limits.firstIndex(of: value) {
+            return Double(exact)
+        }
+        if let upper = limits.firstIndex(where: { $0 >= value }) {
+            if upper == 0 {
+                return 0
+            }
+            let lowerDistance = value - limits[upper - 1]
+            let upperDistance = limits[upper] - value
+            return Double(lowerDistance <= upperDistance ? upper - 1 : upper)
+        }
+        return Double(limits.count)
+    }
+
+    private func value(for index: Double) -> Value? {
+        let clamped = min(max(Int(index.rounded()), 0), limits.count)
+        return clamped < limits.count ? limits[clamped] : nil
     }
 }
