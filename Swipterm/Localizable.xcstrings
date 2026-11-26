@@ -57675,312 +57675,312 @@
         }
       }
     },
-    "This system has no kernel that can boot on this device. Use an archive that includes a 4K-page ARM64 kernel.": {
+    "This system has no kernel that can boot on this device. Use an archive that includes a 4K- or 16K-page ARM64 kernel.": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "لا يحتوي هذا النظام على نواة يمكن تشغيلها على هذا الجهاز. يرجى استخدام أرشيف يتضمن نواة ARM64 بصفحات 4K."
+            "value": "لا يحتوي هذا النظام على نواة يمكن تشغيلها على هذا الجهاز. يرجى استخدام أرشيف يتضمن نواة ARM64 بصفحات 4K أو 16K."
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Тази система няма ядро, което да може да стартира на това устройство. Използвайте архив, който съдържа ядро за ARM64 със страници от 4K."
+            "value": "Тази система няма ядро, което да може да стартира на това устройство. Използвайте архив, който съдържа ядро за ARM64 със страници от 4K или 16K."
           }
         },
         "bn": {
           "stringUnit": {
             "state": "translated",
-            "value": "এই সিস্টেমে এমন কোনো কার্নেল নেই যা এই ডিভাইসে বুট হতে পারে। 4K পেজের ARM64 কার্নেল আছে এমন একটি আর্কাইভ ব্যবহার করুন।"
+            "value": "এই সিস্টেমে এমন কোনো কার্নেল নেই যা এই ডিভাইসে বুট হতে পারে। 4K বা 16K পেজের ARM64 কার্নেল আছে এমন একটি আর্কাইভ ব্যবহার করুন।"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aquest sistema no té cap nucli que pugui arrencar en aquest dispositiu. Utilitza un arxiu que inclogui un nucli ARM64 amb pàgines de 4K."
+            "value": "Aquest sistema no té cap nucli que pugui arrencar en aquest dispositiu. Utilitza un arxiu que inclogui un nucli ARM64 amb pàgines de 4K o 16K."
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tento systém nemá žádné jádro, které by šlo na tomto zařízení spustit. Použijte archiv, který obsahuje jádro ARM64 se stránkami o velikosti 4K."
+            "value": "Tento systém nemá žádné jádro, které by šlo na tomto zařízení spustit. Použijte archiv, který obsahuje jádro ARM64 se stránkami o velikosti 4K nebo 16K."
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dette system har ingen kerne, der kan starte på denne enhed. Brug et komprimeret arkiv, der indeholder en ARM64-kerne med 4K-sider."
+            "value": "Dette system har ingen kerne, der kan starte på denne enhed. Brug et komprimeret arkiv, der indeholder en ARM64-kerne med 4K- eller 16K-sider."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dieses System enthält keinen Kernel, der auf diesem Gerät starten kann. Verwende ein Archiv mit einem ARM64-Kernel mit 4K-Seiten."
+            "value": "Dieses System enthält keinen Kernel, der auf diesem Gerät starten kann. Verwende ein Archiv mit einem ARM64-Kernel mit 4K- oder 16K-Seiten."
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Αυτό το σύστημα δεν διαθέτει πυρήνα που μπορεί να εκκινήσει σε αυτήν τη συσκευή. Χρησιμοποιήστε μια αρχειοθήκη που περιλαμβάνει πυρήνα ARM64 με σελίδες 4K."
+            "value": "Αυτό το σύστημα δεν διαθέτει πυρήνα που μπορεί να εκκινήσει σε αυτήν τη συσκευή. Χρησιμοποιήστε μια αρχειοθήκη που περιλαμβάνει πυρήνα ARM64 με σελίδες 4K ή 16K."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Este sistema no tiene ningún kernel que pueda arrancar en este dispositivo. Usa un archivo comprimido que incluya un kernel ARM64 con páginas de 4K."
+            "value": "Este sistema no tiene ningún kernel que pueda arrancar en este dispositivo. Usa un archivo comprimido que incluya un kernel ARM64 con páginas de 4K o 16K."
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "Este sistema no tiene ningún kernel que pueda arrancar en este dispositivo. Usa un archivo comprimido que incluya un kernel ARM64 con páginas de 4K."
+            "value": "Este sistema no tiene ningún kernel que pueda arrancar en este dispositivo. Usa un archivo comprimido que incluya un kernel ARM64 con páginas de 4K o 16K."
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "این سیستم هیچ هسته‌ای ندارد که روی این دستگاه راه‌اندازی شود. از آرشیوی استفاده کنید که شامل هستهٔ ARM64 با صفحه‌های 4K باشد."
+            "value": "این سیستم هیچ هسته‌ای ندارد که روی این دستگاه راه‌اندازی شود. از آرشیوی استفاده کنید که شامل هستهٔ ARM64 با صفحه‌های 4K یا 16K باشد."
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Järjestelmässä ei ole ydintä, joka voisi käynnistyä tällä laitteella. Käytä arkistoa, joka sisältää 4K-sivuja käyttävän ARM64-ytimen."
+            "value": "Järjestelmässä ei ole ydintä, joka voisi käynnistyä tällä laitteella. Käytä arkistoa, joka sisältää 4K- tai 16K-sivuja käyttävän ARM64-ytimen."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ce système ne contient aucun noyau pouvant démarrer sur cet appareil. Utilisez une archive qui inclut un noyau ARM64 à pages de 4 Ko."
+            "value": "Ce système ne contient aucun noyau pouvant démarrer sur cet appareil. Utilisez une archive qui inclut un noyau ARM64 à pages de 4 Ko ou 16 Ko."
           }
         },
         "fr-CA": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ce système ne contient aucun noyau pouvant démarrer sur cet appareil. Utilisez une archive qui inclut un noyau ARM64 à pages de 4 Ko."
+            "value": "Ce système ne contient aucun noyau pouvant démarrer sur cet appareil. Utilisez une archive qui inclut un noyau ARM64 à pages de 4 Ko ou 16 Ko."
           }
         },
         "gu": {
           "stringUnit": {
             "state": "translated",
-            "value": "આ સિસ્ટમમાં એવું કોઈ કર્નલ નથી જે આ ડિવાઇસ પર બૂટ થઈ શકે. 4K પેજવાળું ARM64 કર્નલ ધરાવતું આર્કાઇવ વાપરો."
+            "value": "આ સિસ્ટમમાં એવું કોઈ કર્નલ નથી જે આ ડિવાઇસ પર બૂટ થઈ શકે. 4K અથવા 16K પેજવાળું ARM64 કર્નલ ધરાવતું આર્કાઇવ વાપરો."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "במערכת זו אין ליבה שיכולה לאתחל במכשיר הזה. יש להשתמש בארכיון שכולל ליבת ARM64 עם דפים בגודל 4K."
+            "value": "במערכת זו אין ליבה שיכולה לאתחל במכשיר הזה. יש להשתמש בארכיון שכולל ליבת ARM64 עם דפים בגודל 4K או 16K."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "इस सिस्टम में ऐसा कोई कर्नेल नहीं है जो इस डिवाइस पर बूट हो सके। ऐसे आर्काइव का उपयोग करें जिसमें 4K पेज वाला ARM64 कर्नेल शामिल हो।"
+            "value": "इस सिस्टम में ऐसा कोई कर्नेल नहीं है जो इस डिवाइस पर बूट हो सके। ऐसे आर्काइव का उपयोग करें जिसमें 4K या 16K पेज वाला ARM64 कर्नेल शामिल हो।"
           }
         },
         "hr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ovaj sustav nema jezgru koja se može pokrenuti na ovom uređaju. Upotrijebite arhivu koja sadrži jezgru ARM64 sa stranicama od 4K."
+            "value": "Ovaj sustav nema jezgru koja se može pokrenuti na ovom uređaju. Upotrijebite arhivu koja sadrži jezgru ARM64 sa stranicama od 4K ili 16K."
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ebben a rendszerben nincs olyan kernel, amely elindulhatna ezen az eszközön. Használjon olyan archívumot, amely 4K-s lapméretű ARM64-kernelt tartalmaz."
+            "value": "Ebben a rendszerben nincs olyan kernel, amely elindulhatna ezen az eszközön. Használjon olyan archívumot, amely 4K-s vagy 16K-s lapméretű ARM64-kernelt tartalmaz."
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sistem ini tidak memiliki kernel yang dapat dijalankan di perangkat ini. Gunakan arsip yang menyertakan kernel ARM64 dengan halaman 4K."
+            "value": "Sistem ini tidak memiliki kernel yang dapat dijalankan di perangkat ini. Gunakan arsip yang menyertakan kernel ARM64 dengan halaman 4K atau 16K."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Questo sistema non contiene un kernel avviabile su questo dispositivo. Usa un archivio che includa un kernel ARM64 con pagine da 4K."
+            "value": "Questo sistema non contiene un kernel avviabile su questo dispositivo. Usa un archivio che includa un kernel ARM64 con pagine da 4K o 16K."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "このシステムには、このデバイスで起動できるカーネルがありません。4KページのARM64カーネルを含むアーカイブを使用してください。"
+            "value": "このシステムには、このデバイスで起動できるカーネルがありません。4Kまたは16KページのARM64カーネルを含むアーカイブを使用してください。"
           }
         },
         "kk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Бұл жүйеде осы құрылғыда жүктеле алатын ядро жоқ. 4K беттерді қолданатын ARM64 ядросы бар архивті пайдаланыңыз."
+            "value": "Бұл жүйеде осы құрылғыда жүктеле алатын ядро жоқ. 4K немесе 16K беттерді қолданатын ARM64 ядросы бар архивті пайдаланыңыз."
           }
         },
         "kn": {
           "stringUnit": {
             "state": "translated",
-            "value": "ಈ ಸಾಧನದಲ್ಲಿ ಬೂಟ್ ಆಗಬಲ್ಲ ಯಾವುದೇ ಕರ್ನಲ್ ಈ ಸಿಸ್ಟಂನಲ್ಲಿ ಇಲ್ಲ. 4K ಪುಟದ ARM64 ಕರ್ನಲ್ ಒಳಗೊಂಡಿರುವ ಆರ್ಕೈವ್ ಬಳಸಿ."
+            "value": "ಈ ಸಾಧನದಲ್ಲಿ ಬೂಟ್ ಆಗಬಲ್ಲ ಯಾವುದೇ ಕರ್ನಲ್ ಈ ಸಿಸ್ಟಂನಲ್ಲಿ ಇಲ್ಲ. 4K ಅಥವಾ 16K ಪುಟದ ARM64 ಕರ್ನಲ್ ಒಳಗೊಂಡಿರುವ ಆರ್ಕೈವ್ ಬಳಸಿ."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이 시스템에는 이 기기에서 시동할 수 있는 커널이 없습니다. 4K 페이지 ARM64 커널이 포함된 아카이브를 사용하세요."
+            "value": "이 시스템에는 이 기기에서 시동할 수 있는 커널이 없습니다. 4K 또는 16K 페이지 ARM64 커널이 포함된 아카이브를 사용하세요."
           }
         },
         "lt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Šioje sistemoje nėra branduolio, kurį būtų galima paleisti šiame įrenginyje. Naudokite archyvą su ARM64 branduoliu, naudojančiu 4K puslapius."
+            "value": "Šioje sistemoje nėra branduolio, kurį būtų galima paleisti šiame įrenginyje. Naudokite archyvą su ARM64 branduoliu, naudojančiu 4K arba 16K puslapius."
           }
         },
         "ml": {
           "stringUnit": {
             "state": "translated",
-            "value": "ഈ ഉപകരണത്തിൽ ബൂട്ട് ചെയ്യാനാകുന്ന കേർണൽ ഈ സിസ്റ്റത്തിൽ ഇല്ല. 4K പേജ് ARM64 കേർണൽ ഉൾപ്പെടുന്ന ആർക്കൈവ് ഉപയോഗിക്കൂ."
+            "value": "ഈ ഉപകരണത്തിൽ ബൂട്ട് ചെയ്യാനാകുന്ന കേർണൽ ഈ സിസ്റ്റത്തിൽ ഇല്ല. 4K അല്ലെങ്കിൽ 16K പേജ് ARM64 കേർണൽ ഉൾപ്പെടുന്ന ആർക്കൈവ് ഉപയോഗിക്കൂ."
           }
         },
         "mr": {
           "stringUnit": {
             "state": "translated",
-            "value": "या सिस्टममध्ये या डिव्हाइसवर बूट होऊ शकेल असे कोणतेही कर्नेल नाही. 4K पेज असलेले ARM64 कर्नेल समाविष्ट असलेले आर्काइव्ह वापरा."
+            "value": "या सिस्टममध्ये या डिव्हाइसवर बूट होऊ शकेल असे कोणतेही कर्नेल नाही. 4K किंवा 16K पेज असलेले ARM64 कर्नेल समाविष्ट असलेले आर्काइव्ह वापरा."
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sistem ini tiada kernel yang boleh dimulakan pada peranti ini. Gunakan arkib yang mengandungi kernel ARM64 dengan halaman 4K."
+            "value": "Sistem ini tiada kernel yang boleh dimulakan pada peranti ini. Gunakan arkib yang mengandungi kernel ARM64 dengan halaman 4K atau 16K."
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "Systemet har ingen kjerne som kan starte på denne enheten. Bruk et arkiv som inneholder en ARM64-kjerne med 4K-sider."
+            "value": "Systemet har ingen kjerne som kan starte på denne enheten. Bruk et arkiv som inneholder en ARM64-kjerne med 4K- eller 16K-sider."
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dit systeem heeft geen kernel die op dit apparaat kan opstarten. Gebruik een archief met een ARM64-kernel met 4K-pagina’s."
+            "value": "Dit systeem heeft geen kernel die op dit apparaat kan opstarten. Gebruik een archief met een ARM64-kernel met 4K- of 16K-pagina’s."
           }
         },
         "or": {
           "stringUnit": {
             "state": "translated",
-            "value": "ଏହି ସିଷ୍ଟମରେ ଏପରି କୌଣସି କର୍ଣ୍ଣେଲ୍ ନାହିଁ ଯାହା ଏହି ଡିଭାଇସରେ ବୁଟ୍ ହୋଇପାରିବ। 4K ପେଜ୍ ଥିବା ARM64 କର୍ଣ୍ଣେଲ୍ ଅନ୍ତର୍ଭୁକ୍ତ ଏକ ଆର୍କାଇଭ୍ ବ୍ୟବହାର କରନ୍ତୁ।"
+            "value": "ଏହି ସିଷ୍ଟମରେ ଏପରି କୌଣସି କର୍ଣ୍ଣେଲ୍ ନାହିଁ ଯାହା ଏହି ଡିଭାଇସରେ ବୁଟ୍ ହୋଇପାରିବ। 4K କିମ୍ବା 16K ପେଜ୍ ଥିବା ARM64 କର୍ଣ୍ଣେଲ୍ ଅନ୍ତର୍ଭୁକ୍ତ ଏକ ଆର୍କାଇଭ୍ ବ୍ୟବହାର କରନ୍ତୁ।"
           }
         },
         "pa": {
           "stringUnit": {
             "state": "translated",
-            "value": "ਇਸ ਸਿਸਟਮ ਵਿੱਚ ਅਜਿਹਾ ਕੋਈ ਕਰਨਲ ਨਹੀਂ ਹੈ ਜੋ ਇਸ ਡੀਵਾਈਸ 'ਤੇ ਬੂਟ ਹੋ ਸਕੇ। ਅਜਿਹਾ ਆਰਕਾਈਵ ਵਰਤੋ ਜਿਸ ਵਿੱਚ 4K ਪੰਨਿਆਂ ਵਾਲਾ ARM64 ਕਰਨਲ ਸ਼ਾਮਲ ਹੋਵੇ।"
+            "value": "ਇਸ ਸਿਸਟਮ ਵਿੱਚ ਅਜਿਹਾ ਕੋਈ ਕਰਨਲ ਨਹੀਂ ਹੈ ਜੋ ਇਸ ਡੀਵਾਈਸ 'ਤੇ ਬੂਟ ਹੋ ਸਕੇ। ਅਜਿਹਾ ਆਰਕਾਈਵ ਵਰਤੋ ਜਿਸ ਵਿੱਚ 4K ਜਾਂ 16K ਪੰਨਿਆਂ ਵਾਲਾ ARM64 ਕਰਨਲ ਸ਼ਾਮਲ ਹੋਵੇ।"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ten system nie ma jądra, które może zostać uruchomione na tym urządzeniu. Użyj archiwum zawierającego jądro ARM64 ze stronami 4K."
+            "value": "Ten system nie ma jądra, które może zostać uruchomione na tym urządzeniu. Użyj archiwum zawierającego jądro ARM64 ze stronami 4K lub 16K."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Este sistema não tem um kernel que possa ser iniciado neste dispositivo. Use um arquivo compactado que inclua um kernel ARM64 com páginas de 4K."
+            "value": "Este sistema não tem um kernel que possa ser iniciado neste dispositivo. Use um arquivo compactado que inclua um kernel ARM64 com páginas de 4K ou 16K."
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Este sistema não tem nenhum kernel que possa arrancar neste dispositivo. Use um arquivo que inclua um kernel ARM64 com páginas de 4K."
+            "value": "Este sistema não tem nenhum kernel que possa arrancar neste dispositivo. Use um arquivo que inclua um kernel ARM64 com páginas de 4K ou 16K."
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "Acest sistem nu are niciun kernel care să poată porni pe acest dispozitiv. Utilizați o arhivă care include un kernel ARM64 cu pagini de 4K."
+            "value": "Acest sistem nu are niciun kernel care să poată porni pe acest dispozitiv. Utilizați o arhivă care include un kernel ARM64 cu pagini de 4K sau 16K."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "В этой системе нет ядра, которое может загрузиться на этом устройстве. Используйте архив с ядром ARM64 для страниц размером 4 КБ."
+            "value": "В этой системе нет ядра, которое может загрузиться на этом устройстве. Используйте архив с ядром ARM64 для страниц размером 4 КБ или 16 КБ."
           }
         },
         "sk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tento systém nemá žiadne jadro, ktoré by sa dalo spustiť na tomto zariadení. Použite archív, ktorý obsahuje jadro ARM64 so stránkami s veľkosťou 4K."
+            "value": "Tento systém nemá žiadne jadro, ktoré by sa dalo spustiť na tomto zariadení. Použite archív, ktorý obsahuje jadro ARM64 so stránkami s veľkosťou 4K alebo 16K."
           }
         },
         "sl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ta sistem nima jedra, ki bi se lahko zagnalo v tej napravi. Uporabite arhiv, ki vsebuje jedro ARM64 s stranmi velikosti 4K."
+            "value": "Ta sistem nima jedra, ki bi se lahko zagnalo v tej napravi. Uporabite arhiv, ki vsebuje jedro ARM64 s stranmi velikosti 4K ali 16K."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Systemet har ingen kärna som kan startas på den här enheten. Använd ett arkiv som innehåller en ARM64-kärna med 4K-sidor."
+            "value": "Systemet har ingen kärna som kan startas på den här enheten. Använd ett arkiv som innehåller en ARM64-kärna med 4K- eller 16K-sidor."
           }
         },
         "ta": {
           "stringUnit": {
             "state": "translated",
-            "value": "இந்தச் சாதனத்தில் பூட் ஆகக்கூடிய கெர்னல் எதுவும் இந்த சிஸ்டத்தில் இல்லை. 4K பக்க ARM64 கெர்னலைக் கொண்ட காப்பகத்தைப் பயன்படுத்தவும்."
+            "value": "இந்தச் சாதனத்தில் பூட் ஆகக்கூடிய கெர்னல் எதுவும் இந்த சிஸ்டத்தில் இல்லை. 4K அல்லது 16K பக்க ARM64 கெர்னலைக் கொண்ட காப்பகத்தைப் பயன்படுத்தவும்."
           }
         },
         "te": {
           "stringUnit": {
             "state": "translated",
-            "value": "ఈ పరికరంలో బూట్ అవ్వగల కెర్నెల్ ఏదీ ఈ సిస్టమ్‌లో లేదు. 4K పేజీ ARM64 కెర్నెల్ ఉన్న ఆర్కైవ్‌ను ఉపయోగించండి."
+            "value": "ఈ పరికరంలో బూట్ అవ్వగల కెర్నెల్ ఏదీ ఈ సిస్టమ్‌లో లేదు. 4K లేదా 16K పేజీ ARM64 కెర్నెల్ ఉన్న ఆర్కైవ్‌ను ఉపయోగించండి."
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "ระบบนี้ไม่มีเคอร์เนลที่สามารถบูตบนอุปกรณ์นี้ได้ ใช้ไฟล์เก็บถาวรที่มีเคอร์เนล ARM64 แบบหน้า 4K"
+            "value": "ระบบนี้ไม่มีเคอร์เนลที่สามารถบูตบนอุปกรณ์นี้ได้ ใช้ไฟล์เก็บถาวรที่มีเคอร์เนล ARM64 แบบหน้า 4K หรือ 16K"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu sistemde bu aygıtta başlatılabilecek bir çekirdek yok. 4K sayfalı ARM64 çekirdeği içeren bir arşiv kullanın."
+            "value": "Bu sistemde bu aygıtta başlatılabilecek bir çekirdek yok. 4K veya 16K sayfalı ARM64 çekirdeği içeren bir arşiv kullanın."
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "У цій системі немає ядра, яке може завантажитися на цьому пристрої. Використайте архів з ядром ARM64 зі сторінками розміром 4 КБ."
+            "value": "У цій системі немає ядра, яке може завантажитися на цьому пристрої. Використайте архів з ядром ARM64 зі сторінками розміром 4 КБ або 16 КБ."
           }
         },
         "ur": {
           "stringUnit": {
             "state": "translated",
-            "value": "اس سسٹم میں کوئی ایسا کرنل نہیں ہے جو اس ڈیوائس پر بوٹ ہو سکے۔ ایسا آرکائیو استعمال کریں جس میں 4K صفحات والا ARM64 کرنل شامل ہو۔"
+            "value": "اس سسٹم میں کوئی ایسا کرنل نہیں ہے جو اس ڈیوائس پر بوٹ ہو سکے۔ ایسا آرکائیو استعمال کریں جس میں 4K یا 16K صفحات والا ARM64 کرنل شامل ہو۔"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hệ thống này không có nhân nào có thể khởi động trên thiết bị này. Hãy dùng tệp lưu trữ có chứa nhân ARM64 với trang 4K."
+            "value": "Hệ thống này không có nhân nào có thể khởi động trên thiết bị này. Hãy dùng tệp lưu trữ có chứa nhân ARM64 với trang 4K hoặc 16K."
           }
         },
         "zh-HK": {
           "stringUnit": {
             "state": "translated",
-            "value": "此系統沒有可在此裝置上啟動的核心。請使用包含 4K 分頁 ARM64 核心的封存檔。"
+            "value": "此系統沒有可在此裝置上啟動的核心。請使用包含 4K 或 16K 分頁 ARM64 核心的封存檔。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "此系统中没有可在此设备上启动的内核。请使用包含 4K 页 ARM64 内核的归档。"
+            "value": "此系统中没有可在此设备上启动的内核。请使用包含 4K 或 16K 页 ARM64 内核的归档。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "此系統沒有可在此裝置上啟動的核心。請使用包含4K分頁ARM64核心的封存檔。"
+            "value": "此系統沒有可在此裝置上啟動的核心。請使用包含4K或16K分頁ARM64核心的封存檔。"
           }
         }
       }

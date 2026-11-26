@@ -909,7 +909,7 @@ final class LinuxSystem {
         guard let error = error as? LinuxRuntime.KernelUnavailableError else {
             return error.localizedDescription
         }
-        let message = String(localized: "This system has no kernel that can boot on this device. Use an archive that includes a 4K-page ARM64 kernel.")
+        let message = String(localized: "This system has no kernel that can boot on this device. Use an archive that includes a 4K- or 16K-page ARM64 kernel.")
         return error.reasons.isEmpty ? message : message + "\n\n" + error.reasons.joined(separator: "\n")
     }
 
