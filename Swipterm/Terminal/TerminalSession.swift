@@ -126,9 +126,9 @@ final class TerminalSession: Identifiable {
             }
         }
         do {
-            if LinuxSystem.shared.state == .booting {
+            if LinuxSystem.shared.state != .running {
                 var showedBootConsole = false
-                if number == 1 {
+                if number == 1, LinuxSystem.shared.state == .booting {
                     consoleSubscription = LinuxSystem.shared.subscribeConsole { [weak self] data in
                         guard !data.isEmpty else { return }
                         showedBootConsole = true

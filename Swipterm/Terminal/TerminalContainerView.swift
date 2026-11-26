@@ -84,8 +84,12 @@ struct TerminalContainerView: View {
             splitState.isSettingsPresented = isPresented
         }
         .onChange(of: sessionManager.sessions.isEmpty) { _, isEmpty in
-            if isEmpty, system.state == .booting || system.state == .running {
+            guard isEmpty else { return }
+            switch system.state {
+            case .booting, .running, .failed:
                 sessionManager.ensureInitialSession()
+            default:
+                break
             }
         }
         .onAppear {

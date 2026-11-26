@@ -139,7 +139,7 @@ private struct OpenURLSheet: View {
     }
 }
 
-private struct FormHeightReaderModifier: ViewModifier {
+struct FormHeightReaderModifier: ViewModifier {
     @Binding var formHeight: CGFloat?
     @Binding var navBarHeight: CGFloat
 

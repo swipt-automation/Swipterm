@@ -13,7 +13,6 @@ struct SettingsView: View {
     @State private var newContainerDraft = SetupDraft()
     @State private var isCreatingContainer = false
     @State private var isImportingContainer = false
-    @State private var importFailure: String?
 
     var body: some View {
         Form {
@@ -52,39 +51,15 @@ struct SettingsView: View {
                     }
                 }
             }
-            Section {
-                ForEach(system.containers) { container in
-                    NavigationLink {
-                        ContainerView(container: container, dismissSettings: dismiss)
-                    } label: {
-                        Label {
-                            Text(verbatim: container.metadata.name)
-                        } icon: {
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(.tint)
-                                .opacity(container.id == system.activeContainerID ? 1 : 0)
-                        }
-                    }
-                }
-            } header: {
-                HStack {
-                    Text("Containers")
-                    Spacer()
-                    Menu {
-                        Button {
-                            isCreatingContainer = true
-                        } label: {
-                            Label("Create", systemImage: "plus")
-                        }
-                        Button {
-                            isImportingContainer = true
-                        } label: {
-                            Label("Import…", systemImage: "square.and.arrow.down")
-                        }
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel(Text("New Container"))
+            ContainerListSection {
+                isCreatingContainer = true
+            } onImport: {
+                isImportingContainer = true
+            } row: { container in
+                NavigationLink {
+                    ContainerView(container: container, dismissSettings: dismiss)
+                } label: {
+                    ContainerLabel(container: container)
                 }
             }
             Section("Terminal") {
@@ -98,23 +73,7 @@ struct SettingsView: View {
         .navigationDestination(isPresented: $isCreatingContainer) {
             SetupView(draft: $newContainerDraft)
         }
-        .fileImporter(isPresented: $isImportingContainer, allowedContentTypes: SetupView.supportedArchiveTypes) { result in
-            do {
-                try system.install(.importArchive(result.get()))
-            } catch {
-                importFailure = error.localizedDescription
-            }
-        }
-        .alert("Can’t Create Container", isPresented: Binding {
-            importFailure != nil
-        } set: { presented in
-            if !presented {
-                importFailure = nil
-            }
-        }, presenting: importFailure) { _ in
-        } message: { failure in
-            Text(failure)
-        }
+        .modifier(ContainerImporterModifier(isPresented: $isImportingContainer))
         .alert("No Location Access", isPresented: $location.isPresentingDeniedAlert) {
             Button("Open Settings") {
                 UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)

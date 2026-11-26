@@ -22,7 +22,7 @@ struct TerminalSessionContentView: View {
                 isVisible: isVisible
             )
             .padding(.horizontal, UIDevice.current.userInterfaceIdiom == .pad ? 4 : 0)
-            if session.phase == .starting || session.phase == .running, !session.hasVisibleOutput || isEnablingJIT {
+            if session.phase == .starting || session.phase == .running, !session.hasVisibleOutput || isEnablingJIT, !isBootFailed {
                 VStack(spacing: 12) {
                     ProgressView()
                         .controlSize(.large)
@@ -70,6 +70,13 @@ struct TerminalSessionContentView: View {
                 isEndAcknowledged = true
             }
         }
+    }
+
+    private var isBootFailed: Bool {
+        if case .failed = LinuxSystem.shared.state {
+            return true
+        }
+        return false
     }
 
     private var isEnablingJIT: Bool {

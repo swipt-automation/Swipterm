@@ -12,7 +12,7 @@ final class LinuxSystem {
         case booting
         case running
         case halted
-        case failed(String)
+        case failed(BootFailure)
 
         var keepsScreenAwake: Bool {
             if case let .provisioning(provisioning) = self {
@@ -36,6 +36,12 @@ final class LinuxSystem {
     struct Provisioning: Equatable {
         let attempt: Int
         var failure: String?
+    }
+
+    struct BootFailure: Equatable, Identifiable {
+        let id = UUID()
+        let message: String
+        let kernelAlternatives: [String]
     }
 
     enum InstallRequest: Sendable {
@@ -295,7 +301,7 @@ final class LinuxSystem {
         tearDownInBackground(nil)
     }
 
-    func restart() {
+    func restart(kernel: LinuxRuntime.Configuration.Kernel = .installed) {
         let generation = beginOperation()
         resetConsole()
         let previousRuntime = detachRuntimeForShutdown()
@@ -310,7 +316,7 @@ final class LinuxSystem {
                 await shutDownRuntime(previousRuntime)
             }
             guard self.generation == generation else { return }
-            await bootInstalledRoot(container, generation: generation)
+            await bootInstalledRoot(container, kernel: kernel, generation: generation)
         }
     }
 
@@ -387,7 +393,7 @@ final class LinuxSystem {
         if state == .running {
             return
         }
-        guard state == .booting else {
+        guard awaitsRunning else {
             throw CancellationError()
         }
         let id = UUID()
@@ -395,7 +401,7 @@ final class LinuxSystem {
             try await withCheckedThrowingContinuation { continuation in
                 if state == .running {
                     continuation.resume()
-                } else if state != .booting {
+                } else if !awaitsRunning {
                     continuation.resume(throwing: CancellationError())
                 } else {
                     runningWaiters[id] = continuation
@@ -426,6 +432,15 @@ final class LinuxSystem {
         } catch {
             terminal.close()
             throw error
+        }
+    }
+
+    private var awaitsRunning: Bool {
+        switch state {
+        case .booting, .failed:
+            true
+        default:
+            false
         }
     }
 
@@ -804,6 +819,7 @@ final class LinuxSystem {
     private func startRuntime(
         _ container: LinuxContainer,
         initMode: LinuxRuntime.Configuration.InitMode,
+        kernel: LinuxRuntime.Configuration.Kernel = .installed,
         generation: UInt64
     ) async throws -> LinuxRuntime {
         await pendingTeardown?.value
@@ -816,6 +832,7 @@ final class LinuxSystem {
         let configuration = LinuxRuntime.Configuration(
             root: Self.rootURL(for: container.id),
             initMode: initMode,
+            kernel: kernel,
             hostname: metadata.name,
             gpu: gpuMode.configuration,
             consoleOutput: { data in
@@ -848,26 +865,33 @@ final class LinuxSystem {
         return bootedRuntime
     }
 
-    private func bootInstalledRoot(_ container: LinuxContainer, generation: UInt64) async {
+    private func bootInstalledRoot(
+        _ container: LinuxContainer,
+        kernel: LinuxRuntime.Configuration.Kernel = .installed,
+        generation: UInt64
+    ) async {
         consoleChunks.removeAll()
         state = .booting
         do {
-            try await bootRoot(container, generation: generation)
+            try await bootRoot(container, kernel: kernel, generation: generation)
             state = .running
             completeRunningWaiters()
         } catch {
             guard self.generation == generation else { return }
             cancelRunningWaiters()
+            resetConsole()
             await shutDownDetachedRuntime()
             guard self.generation == generation else { return }
-            state = .failed(Self.failureMessage(error))
+            let alternatives = await Task.detached { Self.kernelAlternatives(in: container, excluding: kernel) }.value
+            guard self.generation == generation else { return }
+            state = .failed(BootFailure(message: Self.failureMessage(error, kernelAlternatives: alternatives), kernelAlternatives: alternatives))
         }
     }
 
-    private func bootRoot(_ container: LinuxContainer, generation: UInt64) async throws {
+    private func bootRoot(_ container: LinuxContainer, kernel: LinuxRuntime.Configuration.Kernel, generation: UInt64) async throws {
         var reboots = 0
         while true {
-            let bootedRuntime = try await startRuntime(container, initMode: .system, generation: generation)
+            let bootedRuntime = try await startRuntime(container, initMode: .system, kernel: kernel, generation: generation)
             let boot = runtimeBoot
 
             awaitingBootReadiness = true
@@ -895,20 +919,23 @@ final class LinuxSystem {
         }
     }
 
-    private func appendBootedKernel(_ kernel: LinuxRuntime.BootedKernel, generation: UInt64) {
-        var log = "\u{1B}[1m==> \(String(localized: "Starting Linux"))\u{1B}[0m\r\n"
-        if let fallbackReason = kernel.fallbackReason {
-            log += "\u{1B}[1;33mwarning:\u{1B}[0m \(fallbackReason.replacingOccurrences(of: "\n", with: "\r\n"))\r\n"
-        }
-        appendConsoleLines(log, generation: generation)
-    }
-
-    private nonisolated static func failureMessage(_ error: any Error) -> String {
-        guard let error = error as? LinuxRuntime.KernelUnavailableError else {
+    private nonisolated static func failureMessage(_ error: any Error, kernelAlternatives: [String]) -> String {
+        guard error is LinuxRuntime.KernelUnavailableError, kernelAlternatives.isEmpty else {
             return error.localizedDescription
         }
         let message = String(localized: "This system has no kernel that can boot on this device. Use an archive that includes a 4K- or 16K-page ARM64 kernel.")
-        return error.reasons.isEmpty ? message : message + "\n\n" + error.reasons.joined(separator: "\n")
+        return message + "\n\n" + error.localizedDescription
+    }
+
+    private nonisolated static func kernelAlternatives(in container: LinuxContainer, excluding kernel: LinuxRuntime.Configuration.Kernel) -> [String] {
+        guard let kernels = try? installedKernels(of: container) else {
+            return []
+        }
+        let release: String? = switch kernel {
+        case .installed: kernels.first
+        case let .release(release): release
+        }
+        return kernels.filter { $0 != release }
     }
 
     private func waitForBootHalt(_ boot: UInt64) async {
@@ -1019,14 +1046,14 @@ final class LinuxSystem {
             guard self.generation == generation else { return }
             let message = haltedDuringProvisioning && !(error is StartupError)
                 ? StartupError.halted.localizedDescription
-                : Self.failureMessage(error)
+                : Self.failureMessage(error, kernelAlternatives: [])
             state = .provisioning(Provisioning(attempt: provisioningAttempt, failure: message))
         }
     }
 
     private func bootForProvisioning(_ container: LinuxContainer, generation: UInt64) async throws -> (LinuxRuntime, OSRelease?) {
         let bootedRuntime = try await startRuntime(container, initMode: .managed, generation: generation)
-        appendBootedKernel(bootedRuntime.bootedKernel, generation: generation)
+        appendConsoleStep(String(localized: "Starting Linux"), generation: generation)
         do {
             try await bootedRuntime.waitReady(.login, timeout: Self.loginTimeout)
         } catch let error as LinuxError where error == .ESRCH {
@@ -1168,6 +1195,10 @@ final class LinuxSystem {
             size += Int64((try? url.resourceValues(forKeys: [.totalFileAllocatedSizeKey]).totalFileAllocatedSize) ?? 0)
         }
         return size
+    }
+
+    nonisolated static func installedKernels(of container: LinuxContainer) throws -> [String] {
+        try LinuxRootImage.installedKernels(at: rootURL(for: container.id))
     }
 
     private nonisolated static let activeContainerKey = "activeContainer"

@@ -41,7 +41,7 @@ private struct ContentView: View {
                 #if SWIPTERM_STORE_SCREENSHOTS && targetEnvironment(simulator)
                 .id(screenshotLocale)
                 #endif
-            case .booting, .running:
+            case .booting, .running, .failed:
                 TerminalContainerView(sessionManager: sessionManager, showSettings: $showSettings)
             case .halted:
                 ContentUnavailableView {
@@ -55,24 +55,6 @@ private struct ContentView: View {
                         showSettings = true
                     }
                 }
-            case let .failed(message):
-                ContentUnavailableView {
-                    Label("Couldn’t Start Linux", systemImage: "exclamationmark.triangle")
-                } description: {
-                    Text(message)
-                        .textSelection(.enabled)
-                } actions: {
-                    Button("Retry") {
-                        system.restart()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    Button("Settings") {
-                        showSettings = true
-                    }
-                    Button("Copy Error") {
-                        UIPasteboard.general.string = message
-                    }
-                }
             }
         }
         .sheet(isPresented: $showSettings) {
@@ -82,11 +64,12 @@ private struct ContentView: View {
         }
         .modifier(KeepScreenAwakeModifier(isRequired: system.state.keepsScreenAwake || system.exportProgress != nil))
         .modifier(OpenURLPromptModifier())
+        .modifier(BootFailurePromptModifier())
         .onChange(of: system.state) { _, state in
             switch state {
             case .running:
                 setupDraft = SetupDraft()
-            case .setup, .provisioning:
+            case .setup, .provisioning, .failed:
                 showSettings = false
             default:
                 break
