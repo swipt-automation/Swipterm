@@ -4,14 +4,22 @@
     struct JITRow: View {
         private let jit = SwiptJIT.shared
 
+        @State private var isPresented = false
+
         var body: some View {
-            NavigationLink {
-                JITView()
+            Button {
+                isPresented = true
             } label: {
                 LabeledContent {
                     Text(jit.isActive ? "Enabled" : "Not Enabled")
                 } label: {
                     Text(verbatim: "JIT")
+                }
+            }
+            .foregroundStyle(.primary)
+            .sheet(isPresented: $isPresented) {
+                NavigationStack {
+                    JITView()
                 }
             }
         }
