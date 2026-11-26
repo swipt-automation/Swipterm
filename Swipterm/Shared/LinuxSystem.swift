@@ -160,6 +160,7 @@ final class LinuxSystem {
     @ObservationIgnored private var openConsoleProgress: ConsoleProgress?
     @ObservationIgnored private var consoleProgressEpoch: UInt64 = 0
     @ObservationIgnored private var pendingInstall: InstallJob?
+    @ObservationIgnored private var failedInstallRequest: InstallRequest?
     private var provisioningAttempt = 0
     private var bootstrapped = false
     private var generation: UInt64 = 0
@@ -250,9 +251,11 @@ final class LinuxSystem {
                 do {
                     job = try Self.createInstallJob(for: request)
                 } catch {
+                    failedInstallRequest = request
                     failSetup(error, generation: generation)
                     return
                 }
+                failedInstallRequest = nil
                 pendingInstall = job
                 await runInstall(job, generation: generation)
             }
@@ -267,6 +270,8 @@ final class LinuxSystem {
             activeTask = Task {
                 await runInstall(pendingInstall, generation: generation)
             }
+        } else if let failedInstallRequest {
+            install(failedInstallRequest)
         } else if let pending = containers.first(where: { !$0.metadata.setupCompleted }) {
             let generation = beginOperation()
             beginSetupAttempt()
@@ -281,6 +286,7 @@ final class LinuxSystem {
             Self.moveToTrash(Self.installDirectoryURL(for: pendingInstall.id))
         }
         pendingInstall = nil
+        failedInstallRequest = nil
         if let pending = containers.first(where: { !$0.metadata.setupCompleted }) {
             containers.removeAll { $0.id == pending.id }
             Self.moveToTrash(Self.rootURL(for: pending.id))
@@ -995,6 +1001,7 @@ final class LinuxSystem {
 
             metadata.setupCompleted = true
             metadata.setup = nil
+            try await runtime.fileSystem.writeFile(Self.guestMetadataPath, contents: JSONEncoder().encode(metadata))
             let completed = LinuxContainer(id: container.id, metadata: metadata)
             try await Task.detached {
                 try Self.saveContainerMetadata(completed.metadata, root: Self.rootURL(for: completed.id))
