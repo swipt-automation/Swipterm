@@ -234,7 +234,8 @@ nonisolated struct KernelBootstrap: Sendable {
     }
 
     private static func isKernelPackage(_ name: String) -> Bool {
-        name.hasPrefix("linux-image-") || name.hasPrefix("linux-modules-")
+        name.hasPrefix("linux-image-") || name.hasPrefix("linux-modules-") ||
+            name.hasPrefix("linux-base-") || name.hasPrefix("linux-binary-")
     }
 
     private static func aptIndex(in text: String) -> String? {
