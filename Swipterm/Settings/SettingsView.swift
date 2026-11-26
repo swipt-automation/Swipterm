@@ -17,13 +17,13 @@ struct SettingsView: View {
                     #if DEBUG || SIDELOAD
                         JITRow()
                     #endif
-                    if settings.isCaffeinateAvailable {
-                        Toggle("Keep Running in Background", isOn: Binding {
-                            settings.isCaffeinateEnabled
-                        } set: { isEnabled in
-                            location.setCaffeinateEnabled(isEnabled)
-                        })
-                    }
+                    #if DEBUG || SIDELOAD || TESTFLIGHT
+                        caffeinateToggle
+                    #else
+                        if settings.isCaffeinateAvailable {
+                            caffeinateToggle
+                        }
+                    #endif
                     LabeledContent("Data Size") {
                         if let dataSize {
                             Text(dataSize.formatted(.byteCount(style: .file)))
@@ -67,5 +67,13 @@ struct SettingsView: View {
             location.isSettingsVisible = false
             location.isPresentingDeniedAlert = false
         }
+    }
+
+    private var caffeinateToggle: some View {
+        Toggle("Keep Running in Background", isOn: Binding {
+            settings.isCaffeinateEnabled
+        } set: { isEnabled in
+            location.setCaffeinateEnabled(isEnabled)
+        })
     }
 }
