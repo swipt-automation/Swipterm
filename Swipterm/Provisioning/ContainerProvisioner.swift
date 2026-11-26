@@ -41,6 +41,9 @@ nonisolated enum ContainerProvisioner {
             "SWIPTERM_TOOLS": DeveloperTool.allCases.filter(developerTools.contains).map(\.rawValue).joined(separator: " "),
             "SWIPTERM_AGENTS": CodingAgent.allCases.filter(software.agents.contains).map(\.rawValue).joined(separator: " "),
         ]
+        for (id, title) in stepTitles {
+            environment["SWIPTERM_STEP_\(id)"] = title
+        }
         if let password = request.password, !password.isEmpty {
             environment["SWIPTERM_PASSWORD"] = password
         }
@@ -67,14 +70,42 @@ nonisolated enum ContainerProvisioner {
         ))
     }
 
+    private static var stepTitles: KeyValuePairs<String, String> {
+        [
+            "kernel": String(localized: "Registering Kernel"),
+            "modules": String(localized: "Indexing Modules"),
+            "locale": String(localized: "Generating Locales"),
+            "keyring": String(localized: "Initializing Keyring"),
+            "packages": String(localized: "Installing Packages"),
+            "go": String(localized: "Installing \("Go")"),
+            "node": String(localized: "Installing \("Node.js")"),
+            "pnpm": String(localized: "Installing \("pnpm")"),
+            "bun": String(localized: "Installing \("Bun")"),
+            "account": String(localized: "Configuring Account"),
+            "shell": String(localized: "Configuring Shell"),
+            "ssh": String(localized: "Configuring \("SSH")"),
+            "docker": String(localized: "Configuring \("Docker")"),
+            "rust": String(localized: "Installing \("Rust")"),
+            "claude_code": String(localized: "Installing \("Claude Code")"),
+            "codex": String(localized: "Installing \("Codex")"),
+            "antigravity": String(localized: "Installing \("Antigravity")"),
+            "cleanup": String(localized: "Cleaning Up"),
+        ]
+    }
+
     private static let setupScript = #"""
     set -eu
     umask 022
 
     user=${SWIPTERM_USER:-root}
+    progress=/var/lib/swipterm/setup-progress
     [ -d /tmp ] || mkdir -m 1777 /tmp
+    rm -rf /tmp/swipterm.* /tmp/swipterm-rustup.*
     work=$(mktemp -d /tmp/swipterm.XXXXXX)
     policy_rc_d=
+    if grep -qsx '# swipterm' /usr/sbin/policy-rc.d; then
+        policy_rc_d=/usr/sbin/policy-rc.d
+    fi
     cleanup() {
         if [ -n "$policy_rc_d" ]; then
             rm -f "$policy_rc_d"
@@ -84,7 +115,18 @@ nonisolated enum ContainerProvisioner {
     trap cleanup EXIT
 
     step() {
-        printf '\n\033[1m==> %s\033[0m\n' "$*"
+        eval "title=\$SWIPTERM_STEP_$1"
+        printf '\n\033[1m==> %s\033[0m\n' "$title"
+    }
+
+    stage() {
+        if grep -qsx "$1" "$progress"; then
+            return 0
+        fi
+        "$1"
+        sync
+        mkdir -p "${progress%/*}"
+        printf '%s\n' "$1" >> "$progress"
     }
 
     fail() {
@@ -118,6 +160,15 @@ nonisolated enum ContainerProvisioner {
 
     in_group() {
         id -nG "$1" | tr ' ' '\n' | grep -qx "$2"
+    }
+
+    ensure_group() {
+        grep -q "^$1:" /etc/group && return 0
+        if have groupadd; then
+            groupadd --system "$1"
+        else
+            addgroup -S "$1"
+        fi
     }
 
     join_group() {
@@ -196,19 +247,21 @@ nonisolated enum ContainerProvisioner {
         su -l -s /bin/sh "$user" -c "[ -r /etc/profile.d/swipterm.sh ] && . /etc/profile.d/swipterm.sh; $1"
     }
 
-    prepare_arch() {
-        if [ -f /etc/locale.gen ] && have locale-gen; then
-            step "Locale"
-            if ! grep -q '^en_US\.UTF-8 UTF-8' /etc/locale.gen; then
-                if grep -q '^#[[:space:]]*en_US\.UTF-8 UTF-8' /etc/locale.gen; then
-                    sed -i 's/^#[[:space:]]*\(en_US\.UTF-8 UTF-8\)/\1/' /etc/locale.gen
-                else
-                    printf 'en_US.UTF-8 UTF-8\n' >> /etc/locale.gen
-                fi
+    generate_locale() {
+        [ -f /etc/locale.gen ] && have locale-gen || return 0
+        step locale
+        if ! grep -q '^en_US\.UTF-8 UTF-8' /etc/locale.gen; then
+            if grep -q '^#[[:space:]]*en_US\.UTF-8 UTF-8' /etc/locale.gen; then
+                sed -i 's/^#[[:space:]]*\(en_US\.UTF-8 UTF-8\)/\1/' /etc/locale.gen
+            else
+                printf 'en_US.UTF-8 UTF-8\n' >> /etc/locale.gen
             fi
-            locale-gen
         fi
-        step "Keyring"
+        locale-gen
+    }
+
+    init_keyring() {
+        step keyring
         pacman-key --init
         if [ -f /usr/share/pacman/keyrings/archlinuxarm.gpg ]; then
             pacman-key --populate archlinuxarm
@@ -226,6 +279,7 @@ nonisolated enum ContainerProvisioner {
         release=$(uname -r)
         for modules in "/lib/modules/$release" "/usr/lib/modules/$release"; do
             if [ -d "$modules" ] && [ ! -e "$modules/modules.dep.bin" ]; then
+                step modules
                 have depmod || install_packages kmod
                 depmod "$release"
                 break
@@ -239,7 +293,7 @@ nonisolated enum ContainerProvisioner {
             index_modules
             return 0
         fi
-        step "Kernel"
+        step kernel
         case "$SWIPTERM_DISTRIBUTION" in
         debian | devuan | kali | ubuntu)
             set_option /etc/initramfs-tools/update-initramfs.conf update_initramfs no
@@ -419,7 +473,7 @@ nonisolated enum ContainerProvisioner {
         debian | devuan | kali | ubuntu)
             if [ ! -e /usr/sbin/policy-rc.d ]; then
                 mkdir -p /usr/sbin
-                printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d
+                printf '#!/bin/sh\n# swipterm\nexit 101\n' > /usr/sbin/policy-rc.d
                 chmod 0755 /usr/sbin/policy-rc.d
                 policy_rc_d=/usr/sbin/policy-rc.d
             fi
@@ -498,7 +552,8 @@ nonisolated enum ContainerProvisioner {
     }
 
     install_opensuse_node() {
-        step "Node.js"
+        [ "$SWIPTERM_DISTRIBUTION" = openSUSE ] && want_tool node || return 0
+        step node
         opensuse_node_pkgs=nodejs24
         opensuse_fallback_pkgs=nodejs-default
         if want_tool npm; then
@@ -517,7 +572,7 @@ nonisolated enum ContainerProvisioner {
         if ! want_tool go || go_from_packages; then
             return 0
         fi
-        step "Go"
+        step go
         fetch "https://go.dev/dl/?mode=json" > "$work/go.json"
         archive=$(sed -n 's/.*"filename"[[:space:]]*:[[:space:]]*"\(go[^"]*\.linux-arm64\.tar\.gz\)".*/\1/p' "$work/go.json" | head -n 1)
         download "https://go.dev/dl/$archive" "$work/$archive"
@@ -529,7 +584,7 @@ nonisolated enum ContainerProvisioner {
         if ! want_tool node || has_recent_packages; then
             return 0
         fi
-        step "Node.js"
+        step node
         base=https://nodejs.org/dist/latest-v24.x
         fetch "$base/SHASUMS256.txt" > "$work/SHASUMS256.txt"
         archive=$(grep -o 'node-v[0-9.]*-linux-arm64\.tar\.gz$' "$work/SHASUMS256.txt" | head -n 1)
@@ -546,7 +601,7 @@ nonisolated enum ContainerProvisioner {
         if ! want_tool pnpm || [ "$SWIPTERM_DISTRIBUTION" = arch ]; then
             return 0
         fi
-        step "pnpm"
+        step pnpm
         fetch "$npm_registry/@pnpm/exe/latest" > "$work/pnpm.json"
         version=$(json_value version < "$work/pnpm.json")
         [ -n "$version" ] || fail "Could not resolve the latest version of pnpm."
@@ -563,7 +618,7 @@ nonisolated enum ContainerProvisioner {
         if ! want_tool bun || [ "$SWIPTERM_DISTRIBUTION" = arch ]; then
             return 0
         fi
-        step "Bun"
+        step bun
         fetch "$npm_registry/bun/latest" > "$work/bun.json"
         version=$(json_value version < "$work/bun.json")
         [ -n "$version" ] || fail "Could not resolve the latest version of Bun."
@@ -574,19 +629,11 @@ nonisolated enum ContainerProvisioner {
         ln -sf bun /usr/local/bin/bunx
     }
 
-    install_software() {
+    install_system_packages() {
         collect_packages
-        if [ -n "$packages" ]; then
-            step "Packages"
-            install_packages $packages
-        fi
-        if [ "$SWIPTERM_DISTRIBUTION" = openSUSE ] && want_tool node; then
-            install_opensuse_node
-        fi
-        install_go
-        install_node
-        install_pnpm
-        install_bun
+        [ -n "$packages" ] || return 0
+        step packages
+        install_packages $packages
     }
 
     remove_template_user() {
@@ -792,6 +839,38 @@ nonisolated enum ContainerProvisioner {
         esac
     }
 
+    configure_account() {
+        if [ "$user" != root ]; then
+            step account
+            case "$SWIPTERM_DISTRIBUTION" in
+            ubuntu)
+                if [ "$user" != ubuntu ]; then
+                    remove_template_user ubuntu
+                    rm -f /etc/sudoers.d/90-cloud-init-users
+                fi
+                ;;
+            arch) remove_template_user alarm ;;
+            esac
+            create_user
+            configure_sudo
+            configure_doas
+            configure_polkit
+            if have loginctl; then
+                mkdir -p /var/lib/systemd/linger
+                : > "/var/lib/systemd/linger/$user"
+            fi
+        elif [ -n "${SWIPTERM_PASSWORD:-}" ]; then
+            step account
+            printf 'root:%s\n' "$SWIPTERM_PASSWORD" | chpasswd
+        fi
+    }
+
+    configure_shell() {
+        step shell
+        configure_login_shell
+        configure_path
+    }
+
     configure_login_shell() {
         [ -n "${SWIPTERM_SHELL:-}" ] || return 0
         shell=$(shell_path)
@@ -810,7 +889,7 @@ nonisolated enum ContainerProvisioner {
 
     configure_ssh() {
         [ -n "${SWIPTERM_SSH_PORT:-}" ] || return 0
-        step "SSH"
+        step ssh
         mkdir -p /run/sshd
         ssh-keygen -A
         sshd_bin=$(command -v sshd)
@@ -879,14 +958,8 @@ nonisolated enum ContainerProvisioner {
 
     configure_docker() {
         want_tool docker || return 0
-        step "Docker"
-        if ! grep -q '^docker:' /etc/group; then
-            if have groupadd; then
-                groupadd --system docker
-            else
-                addgroup -S docker
-            fi
-        fi
+        step docker
+        ensure_group docker
         if [ "$user" != root ]; then
             join_group docker
         fi
@@ -954,7 +1027,7 @@ nonisolated enum ContainerProvisioner {
         if ! want_tool rust; then
             return 0
         fi
-        step "Rust"
+        step rust
         target=aarch64-unknown-linux-gnu
         if [ "$SWIPTERM_DISTRIBUTION" = alpine ]; then
             target=aarch64-unknown-linux-musl
@@ -971,7 +1044,7 @@ nonisolated enum ContainerProvisioner {
         if ! want_agent antigravity; then
             return 0
         fi
-        step "Antigravity"
+        step antigravity
         platform=linux_arm64
         if [ "$SWIPTERM_DISTRIBUTION" = alpine ]; then
             platform=linux_arm64_musl
@@ -989,7 +1062,7 @@ nonisolated enum ContainerProvisioner {
         if ! want_agent codex; then
             return 0
         fi
-        step "Codex"
+        step codex
         fetch "$npm_registry/@openai/codex/latest" > "$work/codex.json"
         version=$(json_value version < "$work/codex.json")
         [ -n "$version" ] || fail "Could not resolve the latest version of Codex."
@@ -1011,22 +1084,20 @@ nonisolated enum ContainerProvisioner {
     EOF
     }
 
-    install_agents() {
-        if want_agent claude-code; then
-            step "Claude Code"
-            if want_tool pnpm; then
-                as_user "pnpm add --global --allow-build=@anthropic-ai/claude-code @anthropic-ai/claude-code"
-            elif want_tool bun; then
-                as_user "bun add --global --trust @anthropic-ai/claude-code"
-            else
-                as_user "npm install --global --prefix \"\$HOME/.local\" @anthropic-ai/claude-code"
-            fi
+    install_claude_code() {
+        want_agent claude-code || return 0
+        step claude_code
+        if want_tool pnpm; then
+            as_user "pnpm add --global --allow-build=@anthropic-ai/claude-code @anthropic-ai/claude-code"
+        elif want_tool bun; then
+            as_user "bun add --global --trust @anthropic-ai/claude-code"
+        else
+            as_user "npm install --global --prefix \"\$HOME/.local\" @anthropic-ai/claude-code"
         fi
-        install_codex
-        install_antigravity
     }
 
     clean_caches() {
+        step cleanup
         case "$SWIPTERM_DISTRIBUTION" in
         debian | devuan | kali | ubuntu) apt-get clean ;;
         arch) rm -rf /var/cache/pacman/pkg/* ;;
@@ -1063,47 +1134,34 @@ nonisolated enum ContainerProvisioner {
     if [ "$SWIPTERM_DISTRIBUTION" = oracle ] && [ -f /etc/pki/rpm-gpg/RPM-GPG-KEY-oracle ]; then
         sed -i 's|file:///RPM-GPG-KEY-oracle|file:///etc/pki/rpm-gpg/RPM-GPG-KEY-oracle|' /etc/yum.repos.d/*.repo
     fi
-    reconcile_kernel
+    stage reconcile_kernel
     case "$SWIPTERM_DISTRIBUTION" in
-    arch) prepare_arch ;;
+    arch)
+        stage generate_locale
+        stage init_keyring
+        ;;
     alma | centos | fedora | openEuler | oracle | rocky) prepare_dnf ;;
     esac
 
     if [ -n "$SWIPTERM_DISTRIBUTION" ]; then
-        install_software
+        stage install_system_packages
+        stage install_opensuse_node
+        stage install_go
+        stage install_node
+        stage install_pnpm
+        stage install_bun
     fi
 
-    if [ "$user" != root ]; then
-        case "$SWIPTERM_DISTRIBUTION" in
-        ubuntu)
-            if [ "$user" != ubuntu ]; then
-                remove_template_user ubuntu
-                rm -f /etc/sudoers.d/90-cloud-init-users
-            fi
-            ;;
-        arch) remove_template_user alarm ;;
-        esac
-        create_user
-        configure_sudo
-        configure_doas
-        configure_polkit
-        if have loginctl; then
-            mkdir -p /var/lib/systemd/linger
-            : > "/var/lib/systemd/linger/$user"
-        fi
-    elif [ -n "${SWIPTERM_PASSWORD:-}" ]; then
-        printf 'root:%s\n' "$SWIPTERM_PASSWORD" | chpasswd
-    fi
-
+    stage configure_account
     load_user
-    configure_login_shell
-    configure_ssh
-    configure_docker
-    configure_path
-    install_rust
-    install_agents
-    clean_caches
-
-    step "Done"
+    stage configure_shell
+    stage configure_ssh
+    stage configure_docker
+    stage install_rust
+    stage install_claude_code
+    stage install_codex
+    stage install_antigravity
+    stage clean_caches
+    rm -f "$progress"
     """#
 }

@@ -21,6 +21,61 @@ final nonisolated class ConsoleNewlineNormalizer: @unchecked Sendable {
     }
 }
 
+nonisolated struct ConsoleBlankLineFilter {
+    private var blankLines = Data()
+    private var pending = Data()
+    private var escape: Data?
+    private var lineHasContent = false
+
+    mutating func filter(_ data: Data) -> Data {
+        var out = Data()
+        for byte in data {
+            if lineHasContent {
+                out.append(byte)
+                lineHasContent = byte != 0x0A
+                continue
+            }
+            if var sequence = escape {
+                sequence.append(byte)
+                let isCSI = sequence.count > 1 && sequence[sequence.startIndex + 1] == UInt8(ascii: "[")
+                if isCSI, sequence.count == 2 || !(0x40 ... 0x7E).contains(byte) {
+                    escape = sequence
+                    continue
+                }
+                escape = nil
+                if isCSI, byte == UInt8(ascii: "m") {
+                    pending.append(sequence)
+                } else {
+                    out.append(blankLines)
+                    beginLine(with: sequence, into: &out)
+                }
+                continue
+            }
+            switch byte {
+            case 0x0A:
+                blankLines.append(pending)
+                blankLines.append(byte)
+                pending.removeAll()
+            case 0x1B:
+                escape = Data([byte])
+            case 0x00 ... 0x20, 0x7F:
+                pending.append(byte)
+            default:
+                beginLine(with: Data([byte]), into: &out)
+            }
+        }
+        return out
+    }
+
+    private mutating func beginLine(with bytes: Data, into out: inout Data) {
+        out.append(pending)
+        out.append(bytes)
+        blankLines.removeAll()
+        pending.removeAll()
+        lineHasContent = true
+    }
+}
+
 nonisolated enum ConsoleText {
     static func plain(_ chunks: [Data]) -> String {
         var data = Data()
