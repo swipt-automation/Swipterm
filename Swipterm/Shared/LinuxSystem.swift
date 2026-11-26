@@ -869,7 +869,6 @@ final class LinuxSystem {
         while true {
             let bootedRuntime = try await startRuntime(container, initMode: .system, generation: generation)
             let boot = runtimeBoot
-            appendBootedKernel(bootedRuntime.bootedKernel, generation: generation)
 
             awaitingBootReadiness = true
             bootHalt = nil
@@ -893,7 +892,6 @@ final class LinuxSystem {
             reboots += 1
             await shutDownDetachedRuntime()
             guard self.generation == generation else { throw CancellationError() }
-            appendConsoleStep(String(localized: "Rebooting"), generation: generation)
         }
     }
 
