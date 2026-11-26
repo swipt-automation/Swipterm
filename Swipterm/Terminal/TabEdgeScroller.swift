@@ -8,7 +8,9 @@ final class TabEdgeScroller: NSObject {
     private var velocity: CGFloat = 0
     private var offset: CGFloat = 0
 
-    var contentWidth: CGFloat { contentView?.bounds.width ?? 0 }
+    var contentWidth: CGFloat {
+        contentView!.bounds.width
+    }
 
     func update(at location: CGPoint) {
         guard let contentView, let scrollView = enclosingScrollView(of: contentView) else {
@@ -43,7 +45,9 @@ final class TabEdgeScroller: NSObject {
     private func enclosingScrollView(of view: UIView) -> UIScrollView? {
         var ancestor = view.superview
         while let current = ancestor {
-            if let scrollView = current as? UIScrollView { return scrollView }
+            if let scrollView = current as? UIScrollView {
+                return scrollView
+            }
             ancestor = current.superview
         }
         return nil
@@ -81,12 +85,12 @@ final class TabEdgeScroller: NSObject {
 struct TabScrollContentAnchor: UIViewRepresentable {
     let scroller: TabEdgeScroller
 
-    func makeUIView(context: Context) -> UIView {
+    func makeUIView(context _: Context) -> UIView {
         let view = UIView()
         view.isUserInteractionEnabled = false
         scroller.contentView = view
         return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {}
+    func updateUIView(_: UIView, context _: Context) {}
 }

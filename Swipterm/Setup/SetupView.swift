@@ -201,7 +201,7 @@ struct SetupView: View {
             allowsMultipleSelection: false
         ) { result in
             do {
-                guard let url = try result.get().first else { return }
+                let url = try result.get()[0]
                 if importsContainer {
                     system.install(.importArchive(url))
                     return
@@ -218,8 +218,9 @@ struct SetupView: View {
             if !presented {
                 errorMessage = nil
             }
-        }) {} message: {
-            Text(errorMessage ?? "")
+        }, presenting: errorMessage) { _ in
+        } message: { message in
+            Text(message)
         }
         .alert("Couldn’t Load Versions", isPresented: Binding {
             catalogFailure != nil
@@ -266,8 +267,8 @@ struct SetupView: View {
             }
         }
         .onChange(of: selectedRelease) {
-            if let shell = draft.software.shell, let distribution = selectedDistribution,
-               !distribution.shells(for: selectedRelease).contains(shell)
+            if let distribution = selectedDistribution,
+               !distribution.shells(for: selectedRelease).contains(draft.software.shell!)
             {
                 draft.software.shell = .bash
             }
@@ -312,7 +313,7 @@ struct SetupView: View {
     }
 
     private var softwareSummary: String {
-        let shell = (draft.software.shell ?? .bash).displayName
+        let shell = draft.software.shell!.displayName
         let count = draft.software.developerTools.count + draft.software.agents.count + (draft.ssh.isEnabled ? 1 : 0)
         return count == 0 ? shell : "\(shell) + \(count)"
     }
@@ -368,17 +369,11 @@ struct SetupView: View {
         let installSource: LinuxSystem.InstallRequest.Creation.Source
         switch draft.source {
         case .distribution:
-            guard let release = selectedRelease else { return }
-            installSource = .catalog(release)
+            installSource = .catalog(selectedRelease!)
         case .localArchive:
-            guard let fileURL = draft.customFileURL else { return }
-            installSource = .localArchive(fileURL)
+            installSource = .localArchive(draft.customFileURL!)
         case .archiveURL:
-            guard let url = remoteArchiveURL else {
-                errorMessage = String(localized: "Enter a valid archive URL.")
-                return
-            }
-            installSource = .remoteArchive(url)
+            installSource = .remoteArchive(remoteArchiveURL!)
         }
         if !draft.usesRootUser, let usernameProblem {
             errorMessage = String(localized: usernameProblem)
@@ -417,13 +412,7 @@ struct SetupView: View {
     }
 
     static var supportedArchiveTypes: [UTType] {
-        var types: [UTType] = [.gzip, .bz2, .data]
-        for ext in ["tar", "xz", "tgz", "txz", "tbz2"] {
-            if let type = UTType(filenameExtension: ext) {
-                types.append(type)
-            }
-        }
-        return types
+        [.gzip, .bz2, .data] + ["tar", "xz", "tgz", "txz", "tbz2"].map { UTType(filenameExtension: $0)! }
     }
 
     static var fallbackUsername: String {
@@ -468,7 +457,7 @@ private struct SetupReleasePicker: View {
     var body: some View {
         if !releases.isEmpty {
             Picker("Version", selection: Binding {
-                selectedReleaseID ?? releases.first(where: \.isRecommended)?.id ?? releases.first?.id ?? ""
+                selectedReleaseID ?? (releases.first(where: \.isRecommended) ?? releases[0]).id
             } set: { newValue in
                 selectedReleaseID = newValue
             }) {

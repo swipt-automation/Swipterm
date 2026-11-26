@@ -125,7 +125,7 @@ final class HostLocation: NSObject {
     @ObservationIgnored private var isContainerActive = false
     @ObservationIgnored private var requestedAlwaysUpgrade = false
     @ObservationIgnored private var pendingUICaffeinateAuthorization = false
-    @ObservationIgnored private var authorizationWaiters: [UUID: CheckedContinuation<CLAuthorizationStatus, Never>] = [:]
+    @ObservationIgnored private var authorizationWaiters: [UUID: CheckedContinuation<Void, Never>] = [:]
     @ObservationIgnored private var leases: [UUID: Lease] = [:]
     @ObservationIgnored private var singleRequests: [UUID: SingleRequest] = [:]
 
@@ -171,7 +171,7 @@ final class HostLocation: NSObject {
             guard UIApplication.shared.applicationState != .background else {
                 throw Failure.foregroundRequired
             }
-            _ = await waitForAuthorization()
+            await waitForAuthorization()
             try Task.checkCancellation()
         }
         switch authorization {
@@ -203,7 +203,7 @@ final class HostLocation: NSObject {
             guard UIApplication.shared.applicationState != .background else {
                 throw Failure.foregroundRequired
             }
-            _ = await waitForAuthorization()
+            await waitForAuthorization()
             try Task.checkCancellation()
         }
         switch authorization {
@@ -265,40 +265,34 @@ final class HostLocation: NSObject {
                 }
                 let request = SingleRequest()
                 request.continuation = continuation
-                request.timeoutTask = Task { [weak self] in
+                request.timeoutTask = Task {
                     try? await Task.sleep(for: Self.requestTimeout)
-                    guard !Task.isCancelled, let self, let active = self.singleRequests[requestID] else { return }
-                    if let candidate = active.bestCandidate {
-                        self.completeSingleRequest(requestID, with: .success(candidate))
+                    guard !Task.isCancelled else { return }
+                    if let candidate = singleRequests[requestID]!.bestCandidate {
+                        completeSingleRequest(requestID, with: .success(candidate))
                     } else {
-                        self.completeSingleRequest(requestID, with: .failure(Failure.timedOut))
+                        completeSingleRequest(requestID, with: .failure(Failure.timedOut))
                     }
                 }
                 singleRequests[requestID] = request
-                let leaseID = addLease(accuracy: accuracy) { [weak self] result in
-                    guard let self else { return }
+                let leaseID = addLease(accuracy: accuracy) { result in
                     switch result {
                     case let .success((location, accuracyAuth)):
                         if self.satisfiesTargetAccuracy(location, requested: accuracy) {
                             self.completeSingleRequest(requestID, with: .success((location, accuracyAuth)))
                             return
                         }
-                        guard let active = self.singleRequests[requestID] else { return }
+                        let active = self.singleRequests[requestID]!
                         if let current = active.bestCandidate {
                             if location.horizontalAccuracy < current.0.horizontalAccuracy {
                                 active.bestCandidate = (location, accuracyAuth)
                             }
                         } else {
                             active.bestCandidate = (location, accuracyAuth)
-                            active.fallbackTask = Task { [weak self] in
+                            active.fallbackTask = Task {
                                 try? await Task.sleep(for: Self.refinementTimeout)
-                                guard !Task.isCancelled,
-                                      let self,
-                                      let candidate = self.singleRequests[requestID]?.bestCandidate
-                                else {
-                                    return
-                                }
-                                self.completeSingleRequest(requestID, with: .success(candidate))
+                                guard !Task.isCancelled else { return }
+                                self.completeSingleRequest(requestID, with: .success(self.singleRequests[requestID]!.bestCandidate!))
                             }
                         }
                     case let .failure(error):
@@ -328,7 +322,7 @@ final class HostLocation: NSObject {
         if let leaseID = request.leaseID {
             removeLease(leaseID)
         }
-        request.continuation?.resume(with: result)
+        request.continuation!.resume(with: result)
     }
 
     func satisfiesTargetAccuracy(_ location: CLLocation, requested: Accuracy?) -> Bool {
@@ -381,16 +375,13 @@ final class HostLocation: NSObject {
             return
         }
 
-        var targetAccuracy: Accuracy? = caffeinateWantsUpdate ? .threeKilometers : nil
-        for lease in leases.values {
-            let effective = lease.accuracy ?? (accuracyAuthorization == .fullAccuracy ? .best : .reduced)
-            if let current = targetAccuracy {
-                targetAccuracy = max(current, effective)
-            } else {
-                targetAccuracy = effective
-            }
+        var accuracies: [Accuracy] = leases.values.map { lease in
+            lease.accuracy ?? (accuracyAuthorization == .fullAccuracy ? .best : .reduced)
         }
-        let accuracyValue = (targetAccuracy ?? .threeKilometers).coreLocationValue
+        if caffeinateWantsUpdate {
+            accuracies.append(.threeKilometers)
+        }
+        let accuracyValue = accuracies.max()!.coreLocationValue
         let distanceFilter: CLLocationDistance = leases.isEmpty ? CLLocationDistanceMax : kCLDistanceFilterNone
 
         if manager.desiredAccuracy != accuracyValue {
@@ -415,25 +406,16 @@ final class HostLocation: NSObject {
         manager.requestAlwaysAuthorization()
     }
 
-    private func waitForAuthorization() async -> CLAuthorizationStatus {
-        if authorization != .notDetermined {
-            return authorization
-        }
+    private func waitForAuthorization() async {
         manager.requestWhenInUseAuthorization()
         let id = UUID()
-        return await withTaskCancellationHandler {
+        await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
-                if authorization != .notDetermined {
-                    continuation.resume(returning: authorization)
-                } else {
-                    authorizationWaiters[id] = continuation
-                }
+                authorizationWaiters[id] = continuation
             }
         } onCancel: {
             Task { @MainActor in
-                if let waiter = self.authorizationWaiters.removeValue(forKey: id) {
-                    waiter.resume(returning: self.authorization)
-                }
+                self.authorizationWaiters.removeValue(forKey: id)?.resume()
             }
         }
     }
@@ -445,7 +427,7 @@ final class HostLocation: NSObject {
             let waiters = authorizationWaiters
             authorizationWaiters.removeAll()
             for waiter in waiters.values {
-                waiter.resume(returning: authorization)
+                waiter.resume()
             }
         }
         if authorization == .denied || authorization == .restricted {

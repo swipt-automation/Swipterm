@@ -17,14 +17,7 @@ final class PreferenceStore {
     private init() {}
 
     func value<T: Decodable>(_ type: T.Type, for name: String) -> T? {
-        let item: Item?
-        do {
-            item = try database.read { try Item.fetchOne($0, key: name) }
-        } catch {
-            AppDatabase.logger.error("read preference \(name, privacy: .public): \(error, privacy: .public)")
-            return nil
-        }
-        guard let item else { return nil }
+        guard let item = try! database.read({ try Item.fetchOne($0, key: name) }) else { return nil }
         do {
             return try JSONDecoder().decode(type, from: item.data)
         } catch {
@@ -34,23 +27,12 @@ final class PreferenceStore {
         }
     }
 
-    @discardableResult
-    func set(_ value: some Encodable, for name: String) -> Bool {
-        do {
-            let data = try JSONEncoder().encode(value)
-            try database.write { try Item(name: name, data: data).save($0) }
-            return true
-        } catch {
-            AppDatabase.logger.error("save preference \(name, privacy: .public): \(error, privacy: .public)")
-            return false
-        }
+    func set(_ value: some Encodable, for name: String) {
+        let data = try! JSONEncoder().encode(value)
+        try! database.write { try Item(name: name, data: data).save($0) }
     }
 
     func remove(_ name: String) {
-        do {
-            _ = try database.write { try Item.deleteOne($0, key: name) }
-        } catch {
-            AppDatabase.logger.error("remove preference \(name, privacy: .public): \(error, privacy: .public)")
-        }
+        _ = try! database.write { try Item.deleteOne($0, key: name) }
     }
 }

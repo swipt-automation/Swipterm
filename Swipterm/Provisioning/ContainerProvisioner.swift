@@ -9,11 +9,11 @@ nonisolated enum ContainerProvisioner {
         let software: ContainerSoftware
     }
 
-    static func detectRelease(on runtime: LinuxRuntime) async -> OSRelease? {
+    static func detectRelease(on runtime: LinuxRuntime) async throws -> OSRelease? {
         for path in ["/etc/os-release", "/usr/lib/os-release"] {
-            if let data = try? await runtime.fileSystem.contents(of: path), let text = String(data: data, encoding: .utf8) {
-                return OSRelease(text)
-            }
+            do {
+                return try await OSRelease(String(decoding: runtime.fileSystem.contents(of: path), as: UTF8.self))
+            } catch let error as LinuxError where error == .ENOENT {}
         }
         return nil
     }
@@ -97,7 +97,7 @@ nonisolated enum ContainerProvisioner {
     set -eu
     umask 022
 
-    user=${SWIPTERM_USER:-root}
+    user=$SWIPTERM_USER
     progress=/var/lib/swipterm/setup-progress
     [ -d /tmp ] || mkdir -m 1777 /tmp
     rm -rf /tmp/swipterm.* /tmp/swipterm-rustup.*
@@ -248,7 +248,6 @@ nonisolated enum ContainerProvisioner {
     }
 
     generate_locale() {
-        [ -f /etc/locale.gen ] && have locale-gen || return 0
         step locale
         if ! grep -q '^en_US\.UTF-8 UTF-8' /etc/locale.gen; then
             if grep -q '^#[[:space:]]*en_US\.UTF-8 UTF-8' /etc/locale.gen; then
@@ -490,7 +489,7 @@ nonisolated enum ContainerProvisioner {
             ;;
         alma | centos | fedora | openEuler | oracle | rocky)
             if [ "$SWIPTERM_DISTRIBUTION" = oracle ]; then
-                dnf -y install "oraclelinux-release-el${SWIPTERM_VERSION_ID%%.*}" || true
+                dnf -y install "oraclelinux-release-el${SWIPTERM_VERSION_ID%%.*}"
             fi
             if want_tool docker; then
                 case "$SWIPTERM_DISTRIBUTION" in
@@ -514,7 +513,7 @@ nonisolated enum ContainerProvisioner {
             fi
             if want_tool node; then
                 case "$SWIPTERM_DISTRIBUTION:${SWIPTERM_VERSION_ID%%.*}" in
-                alma:9 | centos:9 | oracle:9 | rocky:9) dnf -y module enable nodejs:24 || dnf -y module enable nodejs:22 ;;
+                alma:9 | centos:9 | oracle:9 | rocky:9) dnf -y module enable nodejs:24 ;;
                 esac
             fi
             ;;
@@ -554,13 +553,11 @@ nonisolated enum ContainerProvisioner {
     install_opensuse_node() {
         [ "$SWIPTERM_DISTRIBUTION" = openSUSE ] && want_tool node || return 0
         step node
-        opensuse_node_pkgs=nodejs24
-        opensuse_fallback_pkgs=nodejs-default
         if want_tool npm; then
-            opensuse_node_pkgs="$opensuse_node_pkgs npm24"
-            opensuse_fallback_pkgs="$opensuse_fallback_pkgs npm-default"
+            install_packages nodejs24 npm24
+        else
+            install_packages nodejs24
         fi
-        install_packages $opensuse_node_pkgs || install_packages $opensuse_fallback_pkgs
         for tool in node npm npx; do
             if ! have "$tool" && [ -x "/usr/bin/${tool}24" ]; then
                 ln -s "${tool}24" "/usr/bin/$tool"
@@ -686,7 +683,6 @@ nonisolated enum ContainerProvisioner {
                 return
             fi
         done
-        printf '/bin/sh\n'
     }
 
     create_user() {
@@ -724,9 +720,10 @@ nonisolated enum ContainerProvisioner {
         if [ ! -e "$sudoers" ] && [ -e /usr/etc/sudoers ]; then
             sudoers=/usr/etc/sudoers
         fi
-        if ! grep -Eq '^[#@]includedir[[:space:]]+/etc/sudoers\.d/?[[:space:]]*$' "$sudoers" 2>/dev/null; then
+        if ! grep -Eq '^[#@]includedir[[:space:]]+/etc/sudoers\.d/?[[:space:]]*$' "$sudoers"; then
             if [ "$sudoers" != /etc/sudoers ]; then
                 cp "$sudoers" /etc/sudoers
+                sudoers=/etc/sudoers
             fi
             printf '\n#includedir /etc/sudoers.d\n' >> /etc/sudoers
             chmod 0440 /etc/sudoers
@@ -737,16 +734,9 @@ nonisolated enum ContainerProvisioner {
         printf '%s ALL=(ALL:ALL) NOPASSWD: ALL\n' "$user" > /etc/sudoers.d/swipterm
         chown 0:0 /etc/sudoers.d/swipterm
         chmod 0440 /etc/sudoers.d/swipterm
-        if have visudo; then
-            if [ -e /etc/sudoers ]; then
-                valid() { visudo -cf /etc/sudoers; }
-            else
-                valid() { visudo -cf /etc/sudoers.d/swipterm; }
-            fi
-            if ! valid; then
-                rm -f /etc/sudoers.d/swipterm
-                fail "sudo rejected the generated configuration."
-            fi
+        if ! visudo -cf "$sudoers"; then
+            rm -f /etc/sudoers.d/swipterm
+            fail "sudo rejected the generated configuration."
         fi
     }
 
@@ -819,7 +809,7 @@ nonisolated enum ContainerProvisioner {
         nushell)
             as_user 'mkdir -p "$HOME/.config/nushell" && touch "$HOME/.config/nushell/env.nu" "$HOME/.config/nushell/config.nu"'
             nu_config=$user_home/.config/nushell/config.nu
-            if [ -n "${SWIPTERM_TOOLS:-}${SWIPTERM_AGENTS:-}" ] && [ ! -s "$nu_config" ]; then
+            if [ -n "$SWIPTERM_TOOLS$SWIPTERM_AGENTS" ] && [ ! -s "$nu_config" ]; then
                 cat > "$nu_config" <<'EOF'
     $env.PNPM_HOME = ($env.HOME | path join ".local" "share" "pnpm")
     $env.PATH = ($env.PATH | split row (char esep) | prepend [
@@ -897,8 +887,8 @@ nonisolated enum ContainerProvisioner {
         mkdir -p /run/sshd
         ssh-keygen -A
         sshd_bin=$(command -v sshd)
-        password=${SWIPTERM_SSH_PASSWORD_AUTHENTICATION:-yes}
-        pubkey=${SWIPTERM_SSH_PUBKEY_AUTHENTICATION:-no}
+        password=$SWIPTERM_SSH_PASSWORD_AUTHENTICATION
+        pubkey=$SWIPTERM_SSH_PUBKEY_AUTHENTICATION
         {
             printf 'Port %s\n' "$SWIPTERM_SSH_PORT"
             printf 'PasswordAuthentication %s\n' "$password"
@@ -997,7 +987,7 @@ nonisolated enum ContainerProvisioner {
             fi
             ;;
         esac
-        if [ -z "${SWIPTERM_TOOLS:-}${SWIPTERM_AGENTS:-}" ]; then
+        if [ -z "$SWIPTERM_TOOLS$SWIPTERM_AGENTS" ]; then
             return 0
         fi
         mkdir -p /etc/profile.d /etc/fish/conf.d
@@ -1059,7 +1049,7 @@ nonisolated enum ContainerProvisioner {
         tar -xzf "$work/antigravity.tar.gz" -C "$work/antigravity"
         as_user 'mkdir -p "$HOME/.local/bin"'
         install -m 0755 -o "$user" -g "$user_group" "$work/antigravity/antigravity" "$user_home/.local/bin/agy"
-        as_user '"$HOME/.local/bin/agy" install' || true
+        as_user '"$HOME/.local/bin/agy" install'
     }
 
     install_codex() {
@@ -1122,12 +1112,12 @@ nonisolated enum ContainerProvisioner {
     esac
 
     if [ -z "$SWIPTERM_DISTRIBUTION" ] &&
-        [ -n "${SWIPTERM_SHELL:-}${SWIPTERM_SSH_PORT:-}${SWIPTERM_TOOLS:-}${SWIPTERM_AGENTS:-}" ]; then
+        [ -n "${SWIPTERM_SHELL:-}${SWIPTERM_SSH_PORT:-}$SWIPTERM_TOOLS$SWIPTERM_AGENTS" ]; then
         warn "The distribution is not recognized; skipping the selected software."
         SWIPTERM_SHELL='' SWIPTERM_SSH_PORT='' SWIPTERM_TOOLS='' SWIPTERM_AGENTS=''
     fi
-    tools=" ${SWIPTERM_TOOLS:-} "
-    agents=" ${SWIPTERM_AGENTS:-} "
+    tools=" $SWIPTERM_TOOLS "
+    agents=" $SWIPTERM_AGENTS "
     musl=
     if [ "$SWIPTERM_DISTRIBUTION" = alpine ]; then
         musl=-musl

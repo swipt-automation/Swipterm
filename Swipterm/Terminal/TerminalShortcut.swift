@@ -36,23 +36,24 @@ nonisolated struct TerminalShortcut: Codable, Hashable, Identifiable, Sendable {
 }
 
 extension TerminalShortcut {
-    static func suggestions() async -> [TerminalShortcut] {
+    static func suggestions() async throws -> [TerminalShortcut] {
         let system = LinuxSystem.shared
-        guard let fileSystem = system.guestFileSystem,
-              let user = system.activeContainer?.metadata.defaultUser,
-              let passwd = try? await fileSystem.contents(of: "/etc/passwd"),
-              let home = String(decoding: passwd, as: UTF8.self)
-              .split(separator: "\n")
-              .map({ $0.split(separator: ":", omittingEmptySubsequences: false) })
-              .first(where: { $0.count >= 6 && $0[0] == user })?[5]
+        guard let fileSystem = system.guestFileSystem else { return [] }
+        let user = system.activeContainer!.metadata.defaultUser
+        let passwd = try await fileSystem.contents(of: "/etc/passwd")
+        guard let home = String(decoding: passwd, as: UTF8.self)
+            .split(separator: "\n")
+            .map({ $0.split(separator: ":", omittingEmptySubsequences: false) })
+            .first(where: { $0.count >= 6 && $0[0] == user })?[5]
         else { return [] }
 
         var suggestions: [TerminalShortcut] = []
-        if let config = try? await fileSystem.contents(of: "\(home)/.ssh/config") {
+        do {
+            let config = try await fileSystem.contents(of: "\(home)/.ssh/config")
             for host in sshHosts(in: String(decoding: config, as: UTF8.self)) {
                 suggestions.append(TerminalShortcut(name: "SSH \(host)", command: "ssh \(host)", icon: "network"))
             }
-        }
+        } catch let error as LinuxError where error == .ENOENT {}
         let binDirectories = [
             "\(home)/.local/share/pnpm/bin",
             "\(home)/.local/share/pnpm",
@@ -62,7 +63,12 @@ extension TerminalShortcut {
             "/usr/bin",
         ]
         for agent in CodingAgent.allCases {
-            for directory in binDirectories where (try? await fileSystem.stat("\(directory)/\(agent.executableName)")) != nil {
+            for directory in binDirectories {
+                do {
+                    _ = try await fileSystem.stat("\(directory)/\(agent.executableName)")
+                } catch let error as LinuxError where error == .ENOENT {
+                    continue
+                }
                 suggestions.append(TerminalShortcut(name: agent.displayName, command: agent.executableName, icon: "sparkles"))
                 break
             }

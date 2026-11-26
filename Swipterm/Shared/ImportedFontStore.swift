@@ -15,22 +15,22 @@ final class ImportedFontStore: ObservableObject {
             await bootstrapTask.value
             return
         }
+        let directory = directory
         let task = Task<Void, Never> {
-            try? await update { directory in
+            fonts = await Task.detached {
+                try! FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 for url in Self.contents(of: directory) {
                     _ = CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
                 }
                 return Self.scan(in: directory)
-            }
+            }.value
         }
         bootstrapTask = task
         await task.value
     }
 
     func importFile(from sourceURL: URL) async throws {
-        await bootstrap()
         try await update { directory in
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let data = try sourceURL.withSecurityScopedAccess {
                 try Data(contentsOf: sourceURL)
             }
@@ -49,15 +49,9 @@ final class ImportedFontStore: ObservableObject {
     }
 
     func delete(_ font: ImportedFont) async throws {
-        await bootstrap()
         try await update { directory in
             _ = CTFontManagerUnregisterFontsForURL(font.fileURL as CFURL, .process, nil)
-            do {
-                try FileManager.default.removeItem(at: font.fileURL)
-            } catch {
-                _ = CTFontManagerRegisterFontsForURL(font.fileURL as CFURL, .process, nil)
-                throw error
-            }
+            try FileManager.default.removeItem(at: font.fileURL)
             return Self.scan(in: directory)
         }
         if AppSettings.shared.fontFamily == font.familyName {
@@ -71,8 +65,8 @@ final class ImportedFontStore: ObservableObject {
     }
 
     private nonisolated static func contents(of directory: URL) -> [URL] {
-        let urls = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
-        return urls.filter { ["ttf", "otf", "ttc", "otc"].contains($0.pathExtension.lowercased()) }
+        try! FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
+            .filter { ["ttf", "otf", "ttc", "otc"].contains($0.pathExtension.lowercased()) }
     }
 
     private nonisolated static func scan(in directory: URL) -> [ImportedFont] {

@@ -81,7 +81,7 @@ private nonisolated enum SymbolCatalog {
         }
     }
 
-    private static let bundle = Bundle(identifier: "com.apple.CoreGlyphs")
+    private static let bundle = Bundle(identifier: "com.apple.CoreGlyphs")!
 
     private static let categoryNames: [String: LocalizedStringResource] = [
         "all": "All",
@@ -116,12 +116,11 @@ private nonisolated enum SymbolCatalog {
     ]
 
     static let categories: [Category] = {
-        guard let url = bundle?.url(forResource: "categories", withExtension: "plist"),
-              let entries = NSArray(contentsOf: url) as? [[String: String]]
-        else { return [] }
+        let entries = NSArray(contentsOf: bundle.url(forResource: "categories", withExtension: "plist")!) as! [[String: String]]
         return entries.compactMap { entry in
-            guard let key = entry["key"], let icon = entry["icon"], let name = categoryNames[key] else { return nil }
-            return Category(key: key, icon: icon, name: name)
+            let key = entry["key"]!
+            guard let name = categoryNames[key] else { return nil }
+            return Category(key: key, icon: entry["icon"]!, name: name)
         }
     }()
 
@@ -131,16 +130,11 @@ private nonisolated enum SymbolCatalog {
     ]
 
     static let all: [Symbol] = {
-        guard let bundle,
-              let orderURL = bundle.url(forResource: "symbol_order", withExtension: "plist"),
-              let names = NSArray(contentsOf: orderURL) as? [String]
-        else { return [] }
-        let keywords = bundle.url(forResource: "symbol_search", withExtension: "plist")
-            .flatMap { NSDictionary(contentsOf: $0) as? [String: [String]] } ?? [:]
-        let categories = bundle.url(forResource: "symbol_categories", withExtension: "plist")
-            .flatMap { NSDictionary(contentsOf: $0) as? [String: [String]] } ?? [:]
+        let names = NSArray(contentsOf: bundle.url(forResource: "symbol_order", withExtension: "plist")!) as! [String]
+        let keywords = NSDictionary(contentsOf: bundle.url(forResource: "symbol_search", withExtension: "plist")!) as! [String: [String]]
+        let categories = NSDictionary(contentsOf: bundle.url(forResource: "symbol_categories", withExtension: "plist")!) as! [String: [String]]
         return names
-            .filter { !localizedVariants.contains($0.split(separator: ".").last ?? "") }
+            .filter { !localizedVariants.contains($0.split(separator: ".").last!) }
             .map { Symbol(name: $0, keywords: keywords[$0] ?? [], categories: categories[$0] ?? []) }
     }()
 }

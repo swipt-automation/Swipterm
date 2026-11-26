@@ -35,12 +35,9 @@ final class TerminalSearch {
     }
 
     private static let noResultsDelay: TimeInterval = 0.4
-    private static let layoutSettleInterval: TimeInterval = 1.5
-    private static let selectionRetryInterval: TimeInterval = 0.3
-    private static let selectionPatience: TimeInterval = 5
     private static let maximumQueryLength = 512
 
-    @ObservationIgnored private weak var terminal: TerminalViewState?
+    @ObservationIgnored private let terminal: TerminalViewState
     @ObservationIgnored private var pacer = FindQueryPacer()
     @ObservationIgnored private var needle = ""
     @ObservationIgnored private var isSurfaceActive = true
@@ -48,9 +45,6 @@ final class TerminalSearch {
     @ObservationIgnored private var noResultsGeneration = 0
 
     @ObservationIgnored private var pendingSelection: Direction?
-    @ObservationIgnored private var pendingSelectionDeadline: TimeInterval = 0
-    @ObservationIgnored private var selectionRequestedAt: TimeInterval = 0
-    @ObservationIgnored private var reselectsUntil: TimeInterval = 0
     @ObservationIgnored private var wantsFieldFocus = false
 
     @ObservationIgnored private var reportedTotal: Int??
@@ -68,7 +62,6 @@ final class TerminalSearch {
 
     func present(needle: String? = nil) {
         if !isPresented {
-            reselectsUntil = Self.now + Self.layoutSettleInterval
             isPresented = true
         }
         if let needle = needle.map(Self.normalized), !needle.isEmpty {
@@ -98,12 +91,11 @@ final class TerminalSearch {
         isPresented = false
         isEditing = false
         wantsFieldFocus = false
-        reselectsUntil = 0
         delayGeneration += 1
         pacer.reset()
         needle = ""
         clearResults()
-        terminal?.performBindingAction("end_search")
+        terminal.performBindingAction("end_search")
     }
 
     // MARK: - Query
@@ -132,7 +124,7 @@ final class TerminalSearch {
         guard isPresented else {
             present()
             if isPresented, !needle.isEmpty {
-                awaitSelection(direction)
+                pendingSelection = direction
             }
             return
         }
@@ -142,14 +134,12 @@ final class TerminalSearch {
         }
         needle = query
         guard isSurfaceActive else { return }
-        if hasMatches, terminal?.performBindingAction(direction.bindingAction) == true {
+        if hasMatches {
             pendingSelection = nil
-            return
+            terminal.performBindingAction(direction.bindingAction)
+        } else if total == nil {
+            pendingSelection = direction
         }
-        guard total != 0 else { return }
-        clearResults()
-        awaitSelection(direction)
-        startSearch()
     }
 
     func setSurfaceActive(_ isActive: Bool) {
@@ -160,7 +150,7 @@ final class TerminalSearch {
             startSearch()
         } else {
             clearResults()
-            terminal?.performBindingAction("search:")
+            terminal.performBindingAction("search:")
         }
     }
 
@@ -180,25 +170,15 @@ final class TerminalSearch {
         pacer.searched(query)
         needle = query
         FindHistory.shared.add(needle)
-        guard !needle.isEmpty else {
-            clearResults()
-            if isSurfaceActive {
-                startSearch()
-            }
-            return
-        }
-        if let direction {
-            awaitSelection(direction)
-        } else {
-            pendingSelection = nil
-        }
+        clearResults()
+        pendingSelection = needle.isEmpty ? nil : direction
         if isSurfaceActive {
             startSearch()
         }
     }
 
     private func startSearch() {
-        terminal?.performBindingAction("search:\(needle)")
+        terminal.performBindingAction("search:\(needle)")
     }
 
     private func clearResults() {
@@ -206,9 +186,15 @@ final class TerminalSearch {
         pendingSelection = nil
         reportedTotal = nil
         reportedSelected = nil
-        if total != nil { total = nil }
-        if selected != nil { selected = nil }
-        if showsNoResults { showsNoResults = false }
+        if total != nil {
+            total = nil
+        }
+        if selected != nil {
+            selected = nil
+        }
+        if showsNoResults {
+            showsNoResults = false
+        }
     }
 
     private static var now: TimeInterval {
@@ -231,28 +217,10 @@ final class TerminalSearch {
 
     // MARK: - Selecting the first match
 
-    private func awaitSelection(_ direction: Direction) {
-        pendingSelection = direction
-        pendingSelectionDeadline = Self.now + Self.selectionPatience
-        selectionRequestedAt = 0
-    }
-
     private func requestPendingSelection() {
         guard let direction = pendingSelection, hasMatches, selected == nil else { return }
-        let now = Self.now
-        guard now <= pendingSelectionDeadline else {
-            pendingSelection = nil
-            return
-        }
-        let wait = Self.selectionRetryInterval - (now - selectionRequestedAt)
-        guard wait <= 0 else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in
-                self?.requestPendingSelection()
-            }
-            return
-        }
-        selectionRequestedAt = now
-        terminal?.performBindingAction(direction.bindingAction)
+        pendingSelection = nil
+        terminal.performBindingAction(direction.bindingAction)
     }
 
     // MARK: - What the surface reports
@@ -288,14 +256,11 @@ final class TerminalSearch {
         reportedSelected = nil
         guard isPresented, isSurfaceActive, !needle.isEmpty else { return }
         if let newSelected {
-            let hadSelection = selected != nil
             if newSelected != selected {
                 selected = newSelected
             }
             if newSelected != nil {
                 pendingSelection = nil
-            } else if hadSelection, pendingSelection == nil, Self.now < reselectsUntil {
-                awaitSelection(.older)
             }
         }
         if let newTotal {
@@ -310,7 +275,9 @@ final class TerminalSearch {
     private func updateNoResults() {
         noResultsGeneration += 1
         guard total == 0 else {
-            if showsNoResults { showsNoResults = false }
+            if showsNoResults {
+                showsNoResults = false
+            }
             return
         }
         guard !showsNoResults else { return }

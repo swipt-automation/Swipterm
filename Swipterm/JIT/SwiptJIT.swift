@@ -84,11 +84,11 @@
         func start() {
             guard browser == nil else { return }
             let browser = NWBrowser(for: .bonjourWithTXTRecord(type: Self.serviceType, domain: nil), using: .tcp)
-            browser.stateUpdateHandler = { [weak self] state in
-                MainActor.assumeIsolated { self?.browserChanged(state) }
+            browser.stateUpdateHandler = { state in
+                MainActor.assumeIsolated { self.browserChanged(state) }
             }
-            browser.browseResultsChangedHandler = { [weak self] results, _ in
-                MainActor.assumeIsolated { self?.resultsChanged(results) }
+            browser.browseResultsChangedHandler = { results, _ in
+                MainActor.assumeIsolated { self.resultsChanged(results) }
             }
             browser.start(queue: .main)
             self.browser = browser
@@ -105,7 +105,6 @@
                 serverName = nil
                 connection?.cancel()
                 status = .unreachable
-                start()
             case .waiting:
                 generation &+= 1
                 candidates = []
@@ -139,7 +138,7 @@
         }
 
         private static func name(_ result: NWBrowser.Result) -> String {
-            guard case let .service(name, _, _, _) = result.endpoint else { return "" }
+            guard case let .service(name, _, _, _) = result.endpoint else { preconditionFailure() }
             return name
         }
 
@@ -175,7 +174,6 @@
             let currentToken = token
             status = .connecting
             connection = Task {
-                let localAddresses = Self.localIPv4Addresses()
                 var lastFailure: String?
 
                 for candidate in snapshot {
@@ -189,7 +187,7 @@
                         if Task.isCancelled || self.generation != generation {
                             return
                         }
-                        guard localAddresses.contains(resolved.host) else { continue }
+                        guard try Self.localIPv4Addresses().contains(resolved.host) else { continue }
                         let url = URL(string: "http://127.0.0.1:\(resolved.port)")!
                         try await SwiptClient(server: url, token: candidateRequiresToken ? currentToken : nil).checkConnection()
                         if Task.isCancelled || self.generation != generation {
@@ -232,8 +230,8 @@
         }
 
         private func scheduleEnable() {
-            guard isEnabled, !isPrepared, status == .connected, enableTask == nil, let server else { return }
-            let client = SwiptClient(server: server, token: requiresToken ? token : nil)
+            guard isEnabled, !isPrepared, status == .connected, enableTask == nil else { return }
+            let client = SwiptClient(server: server!, token: requiresToken ? token : nil)
             errorMessage = nil
             status = .enabling
             enableTask = Task {
@@ -241,7 +239,7 @@
                 do {
                     await Self.waitForFrames(Self.framesBeforeHandshake)
                     if isEnabled {
-                        try await client.enableJIT(bundleID: Bundle.main.bundleIdentifier ?? "", pid: UInt64(getpid()))
+                        try await client.enableJIT(bundleID: Bundle.main.bundleIdentifier!, pid: UInt64(getpid()))
                         try await Self.prepareMemory()
                     }
                 } catch {
@@ -296,20 +294,20 @@
             }
         }
 
-        private static func localIPv4Addresses() -> Set<String> {
+        private static func localIPv4Addresses() throws -> Set<String> {
             var addresses: Set = ["127.0.0.1"]
             var first: UnsafeMutablePointer<ifaddrs>?
-            guard getifaddrs(&first) == 0, let head = first else { return addresses }
+            guard getifaddrs(&first) == 0 else {
+                throw POSIXError(POSIXErrorCode(rawValue: errno)!)
+            }
+            let head = first!
             defer { freeifaddrs(head) }
             var pointer: UnsafeMutablePointer<ifaddrs>? = head
             while let current = pointer {
                 if let sa = current.pointee.ifa_addr, sa.pointee.sa_family == sa_family_t(AF_INET) {
                     var sin = sa.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee }
                     var buffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
-                    if inet_ntop(AF_INET, &sin.sin_addr, &buffer, socklen_t(INET_ADDRSTRLEN)) != nil {
-                        let length = buffer.firstIndex(of: 0) ?? buffer.count
-                        addresses.insert(String(decoding: buffer[..<length].map(UInt8.init(bitPattern:)), as: UTF8.self))
-                    }
+                    addresses.insert(String(cString: inet_ntop(AF_INET, &sin.sin_addr, &buffer, socklen_t(INET_ADDRSTRLEN))!))
                 }
                 pointer = current.pointee.ifa_next
             }
@@ -318,9 +316,7 @@
 
         private static func resolve(_ endpoint: NWEndpoint) async throws -> (host: String, port: UInt16) {
             let parameters = NWParameters.tcp
-            if let ip = parameters.defaultProtocolStack.internetProtocol as? NWProtocolIP.Options {
-                ip.version = .v4
-            }
+            (parameters.defaultProtocolStack.internetProtocol as! NWProtocolIP.Options).version = .v4
             let connection = NWConnection(to: endpoint, using: parameters)
             return try await withTaskCancellationHandler {
                 try await withCheckedThrowingContinuation { continuation in

@@ -13022,6 +13022,316 @@
         }
       }
     },
+    "Couldn’t Load Suggestions": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر تحميل الاقتراحات"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Предложенията не можаха да бъдат заредени"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "পরামর্শ লোড করা যায়নি"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No s’han pogut carregar els suggeriments"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Návrhy se nepodařilo načíst"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forslag kunne ikke indlæses"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorschläge konnten nicht geladen werden"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Δεν ήταν δυνατή η φόρτωση των προτάσεων"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se han podido cargar las sugerencias"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudieron cargar las sugerencias"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بارگیری پیشنهادها انجام نشد"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ehdotusten lataaminen epäonnistui"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de charger les suggestions"
+          }
+        },
+        "fr-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de charger les suggestions"
+          }
+        },
+        "gu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "સૂચનો લોડ કરી શકાયાં નહીં"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "לא היה ניתן לטעון את ההצעות"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सुझाव लोड नहीं किए जा सके"
+          }
+        },
+        "hr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prijedloge nije moguće učitati"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nem sikerült betölteni a javaslatokat"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidak Dapat Memuat Saran"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile caricare i suggerimenti"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候補を読み込めませんでした"
+          }
+        },
+        "kk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ұсыныстарды жүктеу мүмкін болмады"
+          }
+        },
+        "kn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ಸಲಹೆಗಳನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "제안을 불러올 수 없음"
+          }
+        },
+        "lt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nepavyko įkelti pasiūlymų"
+          }
+        },
+        "ml": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "നിർദ്ദേശങ്ങൾ ലോഡ് ചെയ്യാനായില്ല"
+          }
+        },
+        "mr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सुचवण्या लोड करता आल्या नाहीत"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidak dapat memuatkan cadangan"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunne ikke laste inn forslag"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kon suggesties niet laden"
+          }
+        },
+        "or": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ପରାମର୍ଶ ଲୋଡ୍ କରାଯାଇପାରିଲା ନାହିଁ"
+          }
+        },
+        "pa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ਸੁਝਾਅ ਲੋਡ ਨਹੀਂ ਕੀਤੇ ਜਾ ਸਕੇ"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nie udało się wczytać sugestii"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível carregar as sugestões"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível carregar as sugestões"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sugestiile nu au putut fi încărcate"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось загрузить предложения"
+          }
+        },
+        "sk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Návrhy sa nepodarilo načítať"
+          }
+        },
+        "sl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Predlogov ni bilo mogoče naložiti"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det gick inte att läsa in förslag"
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "பரிந்துரைகளை ஏற்ற முடியவில்லை"
+          }
+        },
+        "te": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "సూచనలను లోడ్ చేయడం సాధ్యపడలేదు"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่สามารถโหลดคำแนะนำได้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öneriler Yüklenemedi"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося завантажити пропозиції"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تجاویز لوڈ نہیں کی جا سکیں"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể tải đề xuất"
+          }
+        },
+        "zh-HK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法載入建議"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法载入建议"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法載入建議"
+          }
+        }
+      }
+    },
     "Couldn’t Load Versions": {
       "localizations": {
         "ar": {
@@ -13328,6 +13638,626 @@
           "stringUnit": {
             "state": "translated",
             "value": "無法載入版本"
+          }
+        }
+      }
+    },
+    "Couldn’t Paste": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر اللصق"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поставянето не можа да бъде извършено"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "পেস্ট করা যায়নি"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No s’ha pogut enganxar"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obsah se nepodařilo vložit"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunne ikke indsætte"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inhalt konnte nicht eingesetzt werden"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Δεν ήταν δυνατή η επικόλληση"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se ha podido pegar"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo pegar"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "چسباندن انجام نشد"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liittäminen epäonnistui"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de coller"
+          }
+        },
+        "fr-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de coller"
+          }
+        },
+        "gu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "પેસ્ટ કરી શકાયું નહીં"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "לא היה ניתן להדביק"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "पेस्ट नहीं किया जा सका"
+          }
+        },
+        "hr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lijepljenje nije moguće"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nem sikerült a beillesztés"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidak Dapat Menempel"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile incollare"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ペーストできませんでした"
+          }
+        },
+        "kk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Қою мүмкін болмады"
+          }
+        },
+        "kn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ಪೇಸ್ಟ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "붙여넣을 수 없음"
+          }
+        },
+        "lt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nepavyko įklijuoti"
+          }
+        },
+        "ml": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "പേസ്റ്റ് ചെയ്യാനായില്ല"
+          }
+        },
+        "mr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "पेस्ट करता आले नाही"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidak dapat menampal"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunne ikke lime inn"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kon niet plakken"
+          }
+        },
+        "or": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ପେଷ୍ଟ କରାଯାଇପାରିଲା ନାହିଁ"
+          }
+        },
+        "pa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ਪੇਸਟ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nie udało się wkleić"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível colar"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível colar"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lipirea nu a putut fi efectuată"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось вставить"
+          }
+        },
+        "sk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obsah sa nepodarilo vložiť"
+          }
+        },
+        "sl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vsebine ni bilo mogoče prilepiti"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det gick inte att klistra in"
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ஒட்ட முடியவில்லை"
+          }
+        },
+        "te": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "పేస్ట్ చేయడం సాధ్యపడలేదు"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่สามารถวางได้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yapıştırılamadı"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося вставити"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "پیسٹ نہیں کیا جا سکا"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể dán"
+          }
+        },
+        "zh-HK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法貼上"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法粘贴"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法貼上"
+          }
+        }
+      }
+    },
+    "Couldn’t Show Notification": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر عرض الإشعار"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Известието не можа да бъде показано"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "বিজ্ঞপ্তি দেখানো যায়নি"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No s’ha pogut mostrar la notificació"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oznámení se nepodařilo zobrazit"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifikationen kunne ikke vises"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitteilung konnte nicht angezeigt werden"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Δεν ήταν δυνατή η εμφάνιση της γνωστοποίησης"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se ha podido mostrar la notificación"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo mostrar la notificación"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نمایش اعلان انجام نشد"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ilmoituksen näyttäminen epäonnistui"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’afficher la notification"
+          }
+        },
+        "fr-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’afficher la notification"
+          }
+        },
+        "gu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "સૂચના બતાવી શકાઈ નહીં"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "לא היה ניתן להציג את העדכון"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सूचना नहीं दिखाई जा सकी"
+          }
+        },
+        "hr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obavijest nije moguće prikazati"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nem sikerült megjeleníteni az értesítést"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidak Dapat Menampilkan Pemberitahuan"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile mostrare la notifica"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通知を表示できませんでした"
+          }
+        },
+        "kk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Хабарландыруды көрсету мүмкін болмады"
+          }
+        },
+        "kn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ಅಧಿಸೂಚನೆಯನ್ನು ತೋರಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알림을 표시할 수 없음"
+          }
+        },
+        "lt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nepavyko parodyti pranešimo"
+          }
+        },
+        "ml": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "അറിയിപ്പ് കാണിക്കാനായില്ല"
+          }
+        },
+        "mr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "नोटिफिकेशन दाखवता आले नाही"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidak dapat menunjukkan pemberitahuan"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunne ikke vise varslingen"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kon melding niet tonen"
+          }
+        },
+        "or": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ବିଜ୍ଞପ୍ତି ଦେଖାଯାଇପାରିଲା ନାହିଁ"
+          }
+        },
+        "pa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ਸੂਚਨਾ ਨਹੀਂ ਦਿਖਾਈ ਜਾ ਸਕੀ"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nie udało się wyświetlić powiadomienia"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível mostrar a notificação"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível mostrar a notificação"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notificarea nu a putut fi afișată"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось показать уведомление"
+          }
+        },
+        "sk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hlásenie sa nepodarilo zobraziť"
+          }
+        },
+        "sl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obvestila ni bilo mogoče prikazati"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det gick inte att visa notisen"
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "அறிவிப்பைக் காட்ட முடியவில்லை"
+          }
+        },
+        "te": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "నోటిఫికేషన్‌ను చూపించడం సాధ్యపడలేదు"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่สามารถแสดงการแจ้งเตือนได้"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildirim Gösterilemedi"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося показати сповіщення"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اطلاع نہیں دکھائی جا سکی"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể hiển thị thông báo"
+          }
+        },
+        "zh-HK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法顯示通知"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法显示通知"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法顯示通知"
           }
         }
       }
@@ -22012,316 +22942,6 @@
         }
       }
     },
-    "Enter a valid archive URL.": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "يرجى إدخال URL صالح للأرشيف."
-          }
-        },
-        "bg": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Въведете валиден URL адрес на архив."
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "একটি সঠিক আর্কাইভ URL লিখুন।"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Introdueix un URL d’arxiu vàlid."
-          }
-        },
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zadejte platnou URL archivu."
-          }
-        },
-        "da": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Skriv en gyldig URL til et komprimeret arkiv."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gib eine gültige Archiv-URL ein."
-          }
-        },
-        "el": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Εισαγάγετε ένα έγκυρο URL αρχειοθήκης."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Introduce una URL de archivo comprimido válida."
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ingresa una URL de archivo comprimido válida."
-          }
-        },
-        "fa": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "یک URL معتبر برای آرشیو وارد کنید."
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anna kelvollinen arkiston URL."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saisissez une URL d’archive valide."
-          }
-        },
-        "fr-CA": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saisissez une URL d’archive valide."
-          }
-        },
-        "gu": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "માન્ય આર્કાઇવ URL દાખલ કરો."
-          }
-        },
-        "he": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "יש להזין URL תקין של ארכיון."
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "मान्य आर्काइव URL दर्ज करें।"
-          }
-        },
-        "hr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unesite valjani URL arhive."
-          }
-        },
-        "hu": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Adjon meg egy érvényes archívum-URL-t."
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Masukkan URL arsip yang valid."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inserisci un URL valido per l’archivio."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "有効なアーカイブのURLを入力してください。"
-          }
-        },
-        "kk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Жарамды архив URL мекенжайын енгізіңіз."
-          }
-        },
-        "kn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ಮಾನ್ಯವಾದ ಆರ್ಕೈವ್ URL ನಮೂದಿಸಿ."
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "유효한 아카이브 URL을 입력하세요."
-          }
-        },
-        "lt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Įveskite tinkamą archyvo URL."
-          }
-        },
-        "ml": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "സാധുവായ ആർക്കൈവ് URL നൽകൂ."
-          }
-        },
-        "mr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "वैध आर्काइव्ह URL एंटर करा."
-          }
-        },
-        "ms": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Masukkan URL arkib yang sah."
-          }
-        },
-        "nb": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Oppgi en gyldig arkiv-URL."
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Voer een geldige archief-URL in."
-          }
-        },
-        "or": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ଏକ ବୈଧ ଆର୍କାଇଭ୍ URL ଲେଖନ୍ତୁ।"
-          }
-        },
-        "pa": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ਕੋਈ ਵੈਧ ਆਰਕਾਈਵ URL ਦਾਖਲ ਕਰੋ।"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wprowadź prawidłowy URL archiwum."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Digite uma URL de arquivo compactado válida."
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Introduza um URL de arquivo válido."
-          }
-        },
-        "ro": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Introduceți un URL de arhivă valid."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Введите действительный URL архива."
-          }
-        },
-        "sk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zadajte platnú URL archívu."
-          }
-        },
-        "sl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vnesite veljaven URL arhiva."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ange en giltig arkiv-URL."
-          }
-        },
-        "ta": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "சரியான காப்பக URL ஐ உள்ளிடவும்."
-          }
-        },
-        "te": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "చెల్లుబాటు అయ్యే ఆర్కైవ్ URL‌ను ఎంటర్ చేయండి."
-          }
-        },
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ป้อน URL ไฟล์เก็บถาวรที่ถูกต้อง"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Geçerli bir arşiv URL’si girin."
-          }
-        },
-        "uk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Введіть дійсну URL-адресу архіву."
-          }
-        },
-        "ur": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "درست آرکائیو URL درج کریں۔"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hãy nhập URL tệp lưu trữ hợp lệ."
-          }
-        },
-        "zh-HK": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "請輸入有效的封存檔 URL。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请输入有效的归档 URL。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "請輸入有效的封存檔URL。"
-          }
-        }
-      }
-    },
     "Export": {
       "localizations": {
         "ar": {
@@ -22938,6 +23558,626 @@
           "stringUnit": {
             "state": "translated",
             "value": "要輸出容器嗎？"
+          }
+        }
+      }
+    },
+    "Exporting takes a long time.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق التصدير وقتًا طويلاً."
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Експортирането отнема много време."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "এক্সপোর্ট করতে অনেক সময় লাগে।"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’exportació triga molt de temps."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export trvá dlouho."
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eksport tager lang tid."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Export dauert lange."
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Η εξαγωγή διαρκεί πολύ."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La exportación tarda mucho tiempo."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La exportación tarda mucho tiempo."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صادر کردن زمان زیادی طول می‌کشد."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vienti kestää kauan."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’exportation prend beaucoup de temps."
+          }
+        },
+        "fr-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’exportation prend beaucoup de temps."
+          }
+        },
+        "gu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "એક્સપોર્ટ કરવામાં ઘણો સમય લાગે છે."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הייצוא נמשך זמן רב."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "एक्सपोर्ट करने में काफ़ी समय लगता है।"
+          }
+        },
+        "hr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Izvoz traje dugo."
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Az exportálás sokáig tart."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ekspor memerlukan waktu lama."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’esportazione richiede molto tempo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "書き出しには時間がかかります。"
+          }
+        },
+        "kk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Экспорттау ұзақ уақыт алады."
+          }
+        },
+        "kn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ಎಕ್ಸ್‌ಪೋರ್ಟ್ ಮಾಡಲು ಹೆಚ್ಚು ಸಮಯ ಬೇಕಾಗುತ್ತದೆ."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내보내기에는 시간이 오래 걸립니다."
+          }
+        },
+        "lt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eksportavimas trunka ilgai."
+          }
+        },
+        "ml": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "എക്സ്പോർട്ട് ചെയ്യാൻ കൂടുതൽ സമയമെടുക്കും."
+          }
+        },
+        "mr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "एक्सपोर्ट करण्यास बराच वेळ लागतो."
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pengeksportan mengambil masa yang lama."
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eksport tar lang tid."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporteren duurt lang."
+          }
+        },
+        "or": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ଏକ୍ସପୋର୍ଟ କରିବାକୁ ଅଧିକ ସମୟ ଲାଗେ।"
+          }
+        },
+        "pa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ਐਕਸਪੋਰਟ ਕਰਨ ਵਿੱਚ ਕਾਫ਼ੀ ਸਮਾਂ ਲੱਗਦਾ ਹੈ।"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eksport trwa długo."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A exportação demora bastante."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A exportação demora bastante tempo."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportul durează mult."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Экспорт занимает много времени."
+          }
+        },
+        "sk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export trvá dlho."
+          }
+        },
+        "sl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Izvoz traja dolgo."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporten tar lång tid."
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ஏற்றுமதி செய்ய நீண்ட நேரம் ஆகும்."
+          }
+        },
+        "te": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ఎక్స్‌పోర్ట్ చేయడానికి చాలా సమయం పడుతుంది."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การส่งออกใช้เวลานาน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dışa aktarma uzun sürer."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Експортування триває довго."
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "برآمد کرنے میں کافی وقت لگتا ہے۔"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quá trình xuất mất nhiều thời gian."
+          }
+        },
+        "zh-HK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匯出需時較長。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出需要较长时间。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "輸出需要較長時間。"
+          }
+        }
+      }
+    },
+    "Exporting takes a long time. The container shuts down during the export and restarts afterward.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق التصدير وقتًا طويلاً. يتم إيقاف تشغيل الحاوية أثناء التصدير، ثم يُعاد تشغيلها بعد ذلك."
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Експортирането отнема много време. Контейнерът се изключва по време на експортирането и след това се рестартира."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "এক্সপোর্ট করতে অনেক সময় লাগে। এক্সপোর্ট চলাকালীন কন্টেনারটি বন্ধ থাকে এবং পরে আবার চালু হয়।"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’exportació triga molt de temps. El contenidor s’atura durant l’exportació i es torna a iniciar després."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export trvá dlouho. Kontejner se během exportu vypne a poté se znovu spustí."
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eksport tager lang tid. Containeren lukkes ned under eksporten og starter igen bagefter."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Export dauert lange. Der Container wird während des Exports heruntergefahren und anschließend neu gestartet."
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Η εξαγωγή διαρκεί πολύ. Το κοντέινερ τερματίζεται κατά την εξαγωγή και επανεκκινείται στη συνέχεια."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La exportación tarda mucho tiempo. El contenedor se apaga durante la exportación y se reinicia después."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La exportación tarda mucho tiempo. El contenedor se apaga durante la exportación y se reinicia después."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صادر کردن زمان زیادی طول می‌کشد. کانتینر در طول صادر کردن خاموش می‌شود و پس از آن دوباره راه‌اندازی می‌شود."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vienti kestää kauan. Säiliö sammutetaan viennin ajaksi ja käynnistetään sen jälkeen uudelleen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’exportation prend beaucoup de temps. Le conteneur est arrêté pendant l’exportation, puis redémarré."
+          }
+        },
+        "fr-CA": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’exportation prend beaucoup de temps. Le conteneur est arrêté pendant l’exportation, puis redémarré."
+          }
+        },
+        "gu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "એક્સપોર્ટ કરવામાં ઘણો સમય લાગે છે. એક્સપોર્ટ દરમિયાન કન્ટેનર બંધ થાય છે અને પછી ફરી શરૂ થાય છે."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הייצוא נמשך זמן רב. המכולה נכבית במהלך הייצוא ומופעלת מחדש לאחר מכן."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "एक्सपोर्ट करने में काफ़ी समय लगता है। एक्सपोर्ट के दौरान कंटेनर बंद रहता है और उसके बाद रीस्टार्ट होता है।"
+          }
+        },
+        "hr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Izvoz traje dugo. Spremnik se isključuje tijekom izvoza i nakon toga ponovno pokreće."
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Az exportálás sokáig tart. A konténer az exportálás idejére leáll, majd utána újraindul."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ekspor memerlukan waktu lama. Kontainer dimatikan selama ekspor dan dimulai ulang setelahnya."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’esportazione richiede molto tempo. Il container viene arrestato durante l’esportazione e riavviato al termine."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "書き出しには時間がかかります。書き出し中はコンテナが停止し、完了後に再起動します。"
+          }
+        },
+        "kk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Экспорттау ұзақ уақыт алады. Экспорттау кезінде контейнер өшіріледі және кейін қайта іске қосылады."
+          }
+        },
+        "kn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ಎಕ್ಸ್‌ಪೋರ್ಟ್ ಮಾಡಲು ಹೆಚ್ಚು ಸಮಯ ಬೇಕಾಗುತ್ತದೆ. ಎಕ್ಸ್‌ಪೋರ್ಟ್ ಸಮಯದಲ್ಲಿ ಕಂಟೇನರ್ ಶಟ್ ಡೌನ್ ಆಗುತ್ತದೆ ಮತ್ತು ನಂತರ ರೀಸ್ಟಾರ್ಟ್ ಆಗುತ್ತದೆ."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내보내기에는 시간이 오래 걸립니다. 내보내는 동안 컨테이너가 종료되며 완료 후 다시 시작됩니다."
+          }
+        },
+        "lt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eksportavimas trunka ilgai. Eksportuojant konteineris išjungiamas, o po to paleidžiamas iš naujo."
+          }
+        },
+        "ml": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "എക്സ്പോർട്ട് ചെയ്യാൻ കൂടുതൽ സമയമെടുക്കും. എക്സ്പോർട്ട് ചെയ്യുമ്പോൾ കണ്ടെയ്‌നർ ഷട്ട് ഡൗൺ ആകുകയും അതിനുശേഷം റീസ്റ്റാർട്ട് ആകുകയും ചെയ്യും."
+          }
+        },
+        "mr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "एक्सपोर्ट करण्यास बराच वेळ लागतो. एक्सपोर्टदरम्यान कंटेनर बंद होतो आणि नंतर पुन्हा सुरू होतो."
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pengeksportan mengambil masa yang lama. Bekas dimatikan semasa pengeksportan dan dimulakan semula selepas itu."
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eksport tar lang tid. Containeren slås av under eksporten og startes på nytt etterpå."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporteren duurt lang. De container wordt tijdens het exporteren uitgeschakeld en daarna opnieuw gestart."
+          }
+        },
+        "or": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ଏକ୍ସପୋର୍ଟ କରିବାକୁ ଅଧିକ ସମୟ ଲାଗେ। ଏକ୍ସପୋର୍ଟ ସମୟରେ କଣ୍ଟେନର ବନ୍ଦ ହୁଏ ଏବଂ ପରେ ପୁଣି ଆରମ୍ଭ ହୁଏ।"
+          }
+        },
+        "pa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ਐਕਸਪੋਰਟ ਕਰਨ ਵਿੱਚ ਕਾਫ਼ੀ ਸਮਾਂ ਲੱਗਦਾ ਹੈ। ਐਕਸਪੋਰਟ ਦੌਰਾਨ ਕੰਟੇਨਰ ਬੰਦ ਹੋ ਜਾਂਦਾ ਹੈ ਅਤੇ ਬਾਅਦ ਵਿੱਚ ਰੀਸਟਾਰਟ ਹੁੰਦਾ ਹੈ।"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eksport trwa długo. Kontener zostanie wyłączony na czas eksportu, a następnie uruchomiony ponownie."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A exportação demora bastante. O contêiner é desligado durante a exportação e reiniciado em seguida."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A exportação demora bastante tempo. O contentor é desligado durante a exportação e reiniciado em seguida."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportul durează mult. Containerul se oprește în timpul exportului și repornește după aceea."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Экспорт занимает много времени. Во время экспорта контейнер выключается, а затем перезапускается."
+          }
+        },
+        "sk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export trvá dlho. Kontajner sa počas exportu vypne a potom sa znova spustí."
+          }
+        },
+        "sl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Izvoz traja dolgo. Vsebnik se med izvozom zaustavi in nato znova zažene."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporten tar lång tid. Containern stängs av under exporten och startas om efteråt."
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ஏற்றுமதி செய்ய நீண்ட நேரம் ஆகும். ஏற்றுமதியின்போது கண்டெய்னர் நிறுத்தப்பட்டு, அதன் பிறகு மீண்டும் தொடங்கும்."
+          }
+        },
+        "te": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ఎక్స్‌పోర్ట్ చేయడానికి చాలా సమయం పడుతుంది. ఎక్స్‌పోర్ట్ సమయంలో కంటైనర్ షట్ డౌన్ అవుతుంది, ఆ తర్వాత రీస్టార్ట్ అవుతుంది."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การส่งออกใช้เวลานาน คอนเทนเนอร์จะปิดลงระหว่างการส่งออกและเริ่มการทำงานใหม่หลังจากนั้น"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dışa aktarma uzun sürer. Kapsayıcı, dışa aktarma sırasında kapanır ve ardından yeniden başlar."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Експортування триває довго. Під час експортування контейнер вимикається, а потім перезапускається."
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "برآمد کرنے میں کافی وقت لگتا ہے۔ برآمد کے دوران کنٹینر بند رہتا ہے اور اس کے بعد ری اسٹارٹ ہوتا ہے۔"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quá trình xuất mất nhiều thời gian. Vùng chứa sẽ tắt trong khi xuất và khởi động lại sau đó."
+          }
+        },
+        "zh-HK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匯出需時較長。匯出期間容器會關閉，並於完成後重新啟動。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出需要较长时间。导出期间容器将关闭，完成后重新启动。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "輸出需要較長時間。輸出期間容器會關閉，並於完成後重新啟動。"
           }
         }
       }
@@ -47444,316 +48684,6 @@
         }
       }
     },
-    "Rebooting": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "جارٍ إعادة التشغيل"
-          }
-        },
-        "bg": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Рестартиране"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "রিবুট করা হচ্ছে"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reiniciant"
-          }
-        },
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restartování"
-          }
-        },
-        "da": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Genstarter"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wird neu gestartet"
-          }
-        },
-        "el": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Επανεκκίνηση"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reiniciando"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reiniciando"
-          }
-        },
-        "fa": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "درحال راه‌اندازی مجدد"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Käynnistetään uudelleen"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Redémarrage"
-          }
-        },
-        "fr-CA": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Redémarrage"
-          }
-        },
-        "gu": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "રીબૂટ કરી રહ્યાં છીએ"
-          }
-        },
-        "he": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "הפעלה מחדש"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "रीबूट किया जा रहा है"
-          }
-        },
-        "hr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ponovno pokretanje"
-          }
-        },
-        "hu": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Újraindítás"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Memulai Ulang"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Riavvio"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "再起動中"
-          }
-        },
-        "kk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Қайта іске қосылуда"
-          }
-        },
-        "kn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ರೀಬೂಟ್ ಮಾಡಲಾಗುತ್ತಿದೆ"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "재시동 중"
-          }
-        },
-        "lt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Paleidžiama iš naujo"
-          }
-        },
-        "ml": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "റീബൂട്ട് ചെയ്യുന്നു"
-          }
-        },
-        "mr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "रीबूट करत आहे"
-          }
-        },
-        "ms": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Memulakan semula"
-          }
-        },
-        "nb": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Starter på nytt"
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Opnieuw opstarten"
-          }
-        },
-        "or": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ରିବୁଟ୍ କରାଯାଉଛି"
-          }
-        },
-        "pa": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ਰੀਬੂਟ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ponowne uruchamianie"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reiniciando"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A reiniciar"
-          }
-        },
-        "ro": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Se repornește"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Перезагрузка"
-          }
-        },
-        "sk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reštartovanie"
-          }
-        },
-        "sl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ponovno zaganjanje"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Startar om"
-          }
-        },
-        "ta": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "மறுதொடக்கம் செய்கிறது"
-          }
-        },
-        "te": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "రీబూట్ చేస్తోంది"
-          }
-        },
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "กำลังเริ่มการทำงานใหม่"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yeniden başlatılıyor"
-          }
-        },
-        "uk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Перезавантаження"
-          }
-        },
-        "ur": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ری بوٹ کیا جا رہا ہے"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Đang khởi động lại"
-          }
-        },
-        "zh-HK": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在重新啟動"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在重新启动"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在重新啟動"
-          }
-        }
-      }
-    },
     "Recent Searches": {
       "comment": "Find bar: the menu of earlier queries",
       "localizations": {
@@ -55501,316 +56431,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "文字格式"
-          }
-        }
-      }
-    },
-    "The container shuts down while it’s exported and restarts afterward.": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "يتم إيقاف تشغيل الحاوية أثناء تصديرها، ثم يُعاد تشغيلها بعد ذلك."
-          }
-        },
-        "bg": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Контейнерът се изключва по време на експортирането и след това се рестартира."
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "এক্সপোর্ট করার সময় কন্টেনারটি বন্ধ থাকে এবং পরে আবার চালু হয়।"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "El contenidor s’atura mentre s’exporta i es torna a iniciar després."
-          }
-        },
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kontejner se během exportu vypne a poté se znovu spustí."
-          }
-        },
-        "da": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Containeren lukkes ned, mens den eksporteres, og starter igen bagefter."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Der Container wird während des Exports heruntergefahren und anschließend neu gestartet."
-          }
-        },
-        "el": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Το κοντέινερ τερματίζεται κατά την εξαγωγή του και επανεκκινείται στη συνέχεια."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "El contenedor se apaga mientras se exporta y se reinicia después."
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "El contenedor se apaga mientras se exporta y se reinicia después."
-          }
-        },
-        "fa": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "کانتینر هنگام صادر شدن خاموش می‌شود و پس از آن دوباره راه‌اندازی می‌شود."
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Säiliö sammutetaan viennin ajaksi ja käynnistetään sen jälkeen uudelleen."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Le conteneur est arrêté pendant son exportation, puis redémarré."
-          }
-        },
-        "fr-CA": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Le conteneur est arrêté pendant son exportation, puis redémarré."
-          }
-        },
-        "gu": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "એક્સપોર્ટ થતી વખતે કન્ટેનર બંધ થાય છે અને પછી ફરી શરૂ થાય છે."
-          }
-        },
-        "he": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "המכולה נכבית בזמן הייצוא ומופעלת מחדש לאחר מכן."
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "एक्सपोर्ट होने के दौरान कंटेनर बंद रहता है और उसके बाद रीस्टार्ट होता है।"
-          }
-        },
-        "hr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Spremnik se isključuje tijekom izvoza i nakon toga ponovno pokreće."
-          }
-        },
-        "hu": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A konténer az exportálás idejére leáll, majd utána újraindul."
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kontainer dimatikan selama diekspor dan dimulai ulang setelahnya."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Il container viene arrestato durante l’esportazione e riavviato al termine."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "書き出し中はコンテナが停止し、完了後に再起動します。"
-          }
-        },
-        "kk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Контейнер экспортталып жатқанда өшіріледі және кейін қайта іске қосылады."
-          }
-        },
-        "kn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ಎಕ್ಸ್‌ಪೋರ್ಟ್ ಆಗುತ್ತಿರುವಾಗ ಕಂಟೇನರ್ ಶಟ್ ಡೌನ್ ಆಗುತ್ತದೆ ಮತ್ತು ನಂತರ ರೀಸ್ಟಾರ್ಟ್ ಆಗುತ್ತದೆ."
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "내보내는 동안 컨테이너가 종료되며 완료 후 다시 시작됩니다."
-          }
-        },
-        "lt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eksportuojant konteineris išjungiamas, o po to paleidžiamas iš naujo."
-          }
-        },
-        "ml": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "എക്സ്പോർട്ട് ചെയ്യുമ്പോൾ കണ്ടെയ്‌നർ ഷട്ട് ഡൗൺ ആകുകയും അതിനുശേഷം റീസ്റ്റാർട്ട് ആകുകയും ചെയ്യും."
-          }
-        },
-        "mr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "एक्सपोर्ट होत असताना कंटेनर बंद होतो आणि नंतर पुन्हा सुरू होतो."
-          }
-        },
-        "ms": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bekas dimatikan semasa dieksport dan dimulakan semula selepas itu."
-          }
-        },
-        "nb": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Containeren slås av mens den eksporteres, og startes på nytt etterpå."
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "De container wordt tijdens het exporteren uitgeschakeld en daarna opnieuw gestart."
-          }
-        },
-        "or": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ଏକ୍ସପୋର୍ଟ ହେଉଥିବା ସମୟରେ କଣ୍ଟେନର ବନ୍ଦ ହୁଏ ଏବଂ ପରେ ପୁଣି ଆରମ୍ଭ ହୁଏ।"
-          }
-        },
-        "pa": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ਐਕਸਪੋਰਟ ਹੋਣ ਦੌਰਾਨ ਕੰਟੇਨਰ ਬੰਦ ਹੋ ਜਾਂਦਾ ਹੈ ਅਤੇ ਬਾਅਦ ਵਿੱਚ ਰੀਸਟਾਰਟ ਹੁੰਦਾ ਹੈ।"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kontener zostanie wyłączony na czas eksportu, a następnie uruchomiony ponownie."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "O contêiner é desligado durante a exportação e reiniciado em seguida."
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "O contentor é desligado durante a exportação e reiniciado em seguida."
-          }
-        },
-        "ro": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Containerul se oprește în timpul exportului și repornește după aceea."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Во время экспорта контейнер выключается, а затем перезапускается."
-          }
-        },
-        "sk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kontajner sa počas exportu vypne a potom sa znova spustí."
-          }
-        },
-        "sl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vsebnik se med izvozom zaustavi in nato znova zažene."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Containern stängs av medan den exporteras och startas om efteråt."
-          }
-        },
-        "ta": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ஏற்றப்படும்போது கண்டெய்னர் நிறுத்தப்பட்டு, அதன் பிறகு மீண்டும் தொடங்கும்."
-          }
-        },
-        "te": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ఎక్స్‌పోర్ట్ అవుతున్నప్పుడు కంటైనర్ షట్ డౌన్ అవుతుంది, ఆ తర్వాత రీస్టార్ట్ అవుతుంది."
-          }
-        },
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "คอนเทนเนอร์จะปิดลงขณะส่งออกและเริ่มการทำงานใหม่หลังจากนั้น"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kapsayıcı, dışa aktarılırken kapanır ve ardından yeniden başlar."
-          }
-        },
-        "uk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Під час експортування контейнер вимикається, а потім перезапускається."
-          }
-        },
-        "ur": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "برآمد ہونے کے دوران کنٹینر بند رہتا ہے اور اس کے بعد ری اسٹارٹ ہوتا ہے۔"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vùng chứa sẽ tắt trong khi được xuất và khởi động lại sau đó."
-          }
-        },
-        "zh-HK": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "匯出期間容器會關閉，並於完成後重新啟動。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导出期间容器将关闭，完成后重新启动。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "輸出期間容器會關閉，並於完成後重新啟動。"
           }
         }
       }

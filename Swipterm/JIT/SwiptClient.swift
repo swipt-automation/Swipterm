@@ -51,14 +51,17 @@
             withUnsafeBytes(of: UInt32(message.count).bigEndian) { body.append(contentsOf: $0) }
             body.append(message)
             let (data, response) = try await URLSession.shared.upload(for: request, from: body)
-            let http = response as? HTTPURLResponse
-            var status = http?.value(forHTTPHeaderField: "grpc-status")
-            var statusMessage = http?.value(forHTTPHeaderField: "grpc-message")
+            let http = response as! HTTPURLResponse
+            var status = http.value(forHTTPHeaderField: "grpc-status")
+            var statusMessage = http.value(forHTTPHeaderField: "grpc-message")
             var offset = data.startIndex
             while offset + 5 <= data.endIndex {
                 let flags = data[offset]
                 let length = data[offset + 1 ..< offset + 5].reduce(0) { $0 << 8 | Int($1) }
-                let payload = data[offset + 5 ..< min(offset + 5 + length, data.endIndex)]
+                guard offset + 5 + length <= data.endIndex else {
+                    throw URLError(.badServerResponse)
+                }
+                let payload = data[offset + 5 ..< offset + 5 + length]
                 offset += 5 + length
                 guard flags & 0x80 != 0 else { continue }
                 for line in String(decoding: payload, as: UTF8.self).split(separator: "\r\n") {
@@ -72,10 +75,10 @@
                 }
             }
             guard let status, let code = Int(status) else {
-                guard let statusCode = http?.statusCode, statusCode != 200 else {
+                guard http.statusCode != 200 else {
                     throw URLError(.badServerResponse)
                 }
-                throw StatusError(code: 2, message: HTTPURLResponse.localizedString(forStatusCode: statusCode))
+                throw StatusError(code: 2, message: HTTPURLResponse.localizedString(forStatusCode: http.statusCode))
             }
             guard code == 0 else {
                 throw StatusError(code: code, message: statusMessage?.removingPercentEncoding ?? statusMessage ?? "")

@@ -18,7 +18,7 @@ struct FontPickerView: View {
         families = UIFont.familyNames
             .filter { family in
                 UIFont.fontNames(forFamilyName: family).contains { name in
-                    UIFont(name: name, size: 12)?.fontDescriptor.symbolicTraits.contains(.traitMonoSpace) == true
+                    UIFont(name: name, size: 12)!.fontDescriptor.symbolicTraits.contains(.traitMonoSpace)
                 }
             }
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
@@ -43,7 +43,7 @@ struct FontPickerView: View {
                 }
                 ForEach(groupedKeys, id: \.self) { letter in
                     Section(letter) {
-                        ForEach(grouped[letter] ?? [], id: \.self) { family in
+                        ForEach(grouped[letter]!, id: \.self) { family in
                             familyRow(name: family, label: family)
                         }
                     }
@@ -86,8 +86,9 @@ struct FontPickerView: View {
             errorMessage != nil
         } set: { _ in
             errorMessage = nil
-        }) {} message: {
-            Text(errorMessage ?? "")
+        }, presenting: errorMessage) { _ in
+        } message: { errorMessage in
+            Text(errorMessage)
         }
         .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.font], allowsMultipleSelection: true) { result in
             Task {
@@ -132,7 +133,7 @@ struct FontPickerView: View {
         let imported = Set(fontStore.fonts.map(\.familyName))
         return Dictionary(grouping: families.filter { !imported.contains($0) }) { family in
             let first = family.prefix(1).uppercased()
-            return first.first?.isLetter == true ? first : "#"
+            return first.first!.isLetter ? first : "#"
         }
     }
 

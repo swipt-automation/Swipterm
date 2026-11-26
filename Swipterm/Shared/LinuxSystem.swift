@@ -165,6 +165,7 @@ final class LinuxSystem {
     private var generation: UInt64 = 0
     private var activeTask: Task<Void, Never>?
     private var pendingTeardown: Task<Void, Never>?
+    @ObservationIgnored private var pendingTrashRemoval: Task<Void, Never>?
     private var isInBackground = false
     private var isSuspended = false
     private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
@@ -208,6 +209,7 @@ final class LinuxSystem {
             let generation = beginOperation()
             activeTask = Task {
                 let (stored, job) = await Task.detached { () -> ([LinuxContainer], InstallJob?) in
+                    try! FileManager.default.createDirectory(at: Self.containersDirectoryURL, withIntermediateDirectories: true)
                     Self.moveToTrash(Self.exportDirectoryURL)
                     Self.migrateLegacyRoot()
                     return (Self.loadContainers(), Self.loadInstallJob())
@@ -259,7 +261,6 @@ final class LinuxSystem {
     #endif
 
     func retrySetup() {
-        guard case let .provisioning(provisioning) = state, provisioning.failure != nil else { return }
         if let pendingInstall {
             let generation = beginOperation()
             beginSetupAttempt()
@@ -367,7 +368,7 @@ final class LinuxSystem {
     }
 
     func resizeSetupTerminal(columns: UInt16, rows: UInt16) {
-        let size = LinuxTerminal.Size(columns: max(columns, 1), rows: max(rows, 1))
+        let size = LinuxTerminal.Size(columns: columns, rows: rows)
         guard size != setupTerminalSize else { return }
         let previousColumns = setupTerminalSize.columns
         setupTerminalSize = size
@@ -407,7 +408,7 @@ final class LinuxSystem {
         }
         let terminal = try runtime.makeTerminal(size: LinuxTerminal.Size(columns: columns, rows: rows))
         do {
-            let process = try await runtime.login(user: activeContainer?.metadata.defaultUser ?? "root", on: terminal, environment: [
+            let process = try await runtime.login(user: activeContainer!.metadata.defaultUser, on: terminal, environment: [
                 "TERM": "xterm-256color",
                 "COLORTERM": "truecolor",
                 "LANG": "C.UTF-8",
@@ -443,7 +444,7 @@ final class LinuxSystem {
 
     private func switchActiveContainer(to id: String?) {
         activeContainerID = id
-        HostPasteStaging.removeAllFiles()
+        try! HostPasteStaging.removeAllFiles()
     }
 
     private func beginSetupAttempt() {
@@ -519,7 +520,7 @@ final class LinuxSystem {
         guard self.generation == generation else { throw CancellationError() }
         let metadata: ContainerMetadata
         if let jobMetadata = job.metadata {
-            guard Self.hasSystemInit(in: builder) else {
+            guard try Self.hasSystemInit(in: builder) else {
                 throw StartupError.missingInit
             }
             if case let .catalog(release) = job.source {
@@ -548,10 +549,10 @@ final class LinuxSystem {
         case let .catalog(release):
             appendConsoleStep(String(localized: "Downloading Image"), generation: generation)
             let url = release.archiveURL
-            try await download(url, to: destination, name: url.host() ?? url.absoluteString, generation: generation)
+            try await download(url, to: destination, name: url.host()!, generation: generation)
         case let .remoteArchive(url):
             appendConsoleStep(String(localized: "Downloading Archive"), generation: generation)
-            try await download(url, to: destination, name: url.host() ?? url.absoluteString, generation: generation)
+            try await download(url, to: destination, name: url.host()!, generation: generation)
         case let .localArchive(bookmark, _):
             appendConsoleStep(String(localized: "Copying Archive"), generation: generation)
             try await Task.detached {
@@ -702,10 +703,9 @@ final class LinuxSystem {
     }
 
     private func renderConsoleProgress() {
-        guard var progress = openConsoleProgress else { return }
+        var progress = openConsoleProgress!
         let columns = Int(setupTerminalSize.columns)
         let lines = progress.meter.lines(width: max(columns - 1, 20))
-        guard !lines.isEmpty || progress.chunkIndex != nil else { return }
         let snapshot = lines.joined(separator: "\r\n")
         let rows = progress.lineLengths.reduce(0) { $0 + max(($1 + columns - 1) / columns, 1) }
         let redraw = Data(("\r" + (rows > 1 ? "\u{1B}[\(rows - 1)A" : "") + "\u{1B}[J" + snapshot).utf8)
@@ -787,8 +787,10 @@ final class LinuxSystem {
             }
         }
         let teardown = pendingTeardown
-        Task.detached(priority: .utility) {
+        let previousTrashRemoval = pendingTrashRemoval
+        pendingTrashRemoval = Task.detached(priority: .utility) {
             await teardown?.value
+            await previousTrashRemoval?.value
             Self.emptyTrash()
         }
     }
@@ -849,12 +851,6 @@ final class LinuxSystem {
             try await bootRoot(container, generation: generation)
             state = .running
             completeRunningWaiters()
-        } catch is CancellationError {
-            guard self.generation == generation else { return }
-            cancelRunningWaiters()
-            await shutDownDetachedRuntime()
-            guard self.generation == generation else { return }
-            state = .setup
         } catch {
             guard self.generation == generation else { return }
             cancelRunningWaiters()
@@ -954,11 +950,12 @@ final class LinuxSystem {
                     await LinuxSystem.shared.appendConsole(visible, generation: generation)
                 }
             }
+            let setup = metadata.setup!
             let request = ContainerProvisioner.Request(
                 hostname: metadata.name,
                 user: metadata.defaultUser,
-                password: metadata.setup?.password,
-                software: metadata.setup?.software ?? ContainerSoftware()
+                password: setup.password,
+                software: setup.software
             )
             let termination: LinuxProcess.Termination
             do {
@@ -1031,7 +1028,7 @@ final class LinuxSystem {
             throw StartupError.halted
         }
         try Task.checkCancellation()
-        return (bootedRuntime, await ContainerProvisioner.detectRelease(on: bootedRuntime))
+        return try await (bootedRuntime, ContainerProvisioner.detectRelease(on: bootedRuntime))
     }
 
     private func appendConsole(_ chunk: Data, generation: UInt64) {
@@ -1084,14 +1081,14 @@ final class LinuxSystem {
     private func observeApplicationLifecycle() {
         let center = NotificationCenter.default
         lifecycleObservers = [
-            center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+            center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
                 MainActor.assumeIsolated {
-                    self?.handleDidEnterBackground()
+                    self.handleDidEnterBackground()
                 }
             },
-            center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+            center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { _ in
                 MainActor.assumeIsolated {
-                    self?.handleWillEnterForeground()
+                    self.handleWillEnterForeground()
                 }
             },
             center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
@@ -1100,8 +1097,7 @@ final class LinuxSystem {
                 }
             },
         ]
-        HostLocation.shared.onBackgroundKeepAliveChange = { [weak self] in
-            guard let self else { return }
+        HostLocation.shared.onBackgroundKeepAliveChange = {
             if HostLocation.shared.isKeepingBackgroundAlive {
                 if self.isSuspended {
                     self.isSuspended = false
@@ -1117,9 +1113,8 @@ final class LinuxSystem {
         isInBackground = true
         LinuxRuntime.suspendGPU()
         guard backgroundTaskID == .invalid else { return }
-        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "Swipterm.LinuxRuntime") { [weak self] in
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "Swipterm.LinuxRuntime") {
             MainActor.assumeIsolated {
-                guard let self else { return }
                 if !HostLocation.shared.isKeepingBackgroundAlive {
                     self.suspendRuntimeIfNeeded()
                 }
@@ -1155,17 +1150,14 @@ final class LinuxSystem {
     }
 
     private func requestLocalNetworkAuthorizationIfNeeded() {
-        guard let url = URL(string: "https://captive.apple.com") else { return }
-        URLSession.shared.dataTask(with: url) { _, _, _ in }.resume()
+        URLSession.shared.dataTask(with: URL(string: "https://captive.apple.com")!) { _, _, _ in }.resume()
     }
 
     nonisolated static func dataSize(of container: LinuxContainer) -> Int64 {
-        guard let enumerator = FileManager.default.enumerator(
+        let enumerator = FileManager.default.enumerator(
             at: rootURL(for: container.id),
             includingPropertiesForKeys: [.totalFileAllocatedSizeKey]
-        ) else {
-            return 0
-        }
+        )!
         var size: Int64 = 0
         for case let url as URL in enumerator {
             size += Int64((try? url.resourceValues(forKeys: [.totalFileAllocatedSizeKey]).totalFileAllocatedSize) ?? 0)
@@ -1200,18 +1192,18 @@ final class LinuxSystem {
     private nonisolated static func migrateLegacyRoot() {
         let fm = FileManager.default
         for item in items(in: URL.applicationSupportDirectory, withPrefix: ".Root.") {
-            try? fm.removeItem(at: item)
+            try! fm.removeItem(at: item)
         }
         let legacyRootURL = URL.applicationSupportDirectory.appending(path: "Root", directoryHint: .isDirectory)
         guard fm.fileExists(atPath: legacyRootURL.path(percentEncoded: false)) else { return }
-        try? fm.createDirectory(at: containersDirectoryURL, withIntermediateDirectories: true)
-        try? fm.moveItem(at: legacyRootURL, to: rootURL(for: UUID().uuidString))
+        try! fm.moveItem(at: legacyRootURL, to: rootURL(for: UUID().uuidString))
     }
 
     private nonisolated static func loadContainers() -> [LinuxContainer] {
         var containers: [LinuxContainer] = []
         for url in items(in: containersDirectoryURL, withPrefix: "")
-            where !url.lastPathComponent.hasPrefix(trashPrefix) && !url.lastPathComponent.hasPrefix(installPrefix) {
+            where !url.lastPathComponent.hasPrefix(trashPrefix) && !url.lastPathComponent.hasPrefix(installPrefix)
+        {
             guard LinuxRootImage.isInstalled(at: url),
                   let data = try? Data(contentsOf: url.appending(path: containerMetadataName)),
                   let metadata = try? JSONDecoder().decode(ContainerMetadata.self, from: data)
@@ -1230,7 +1222,8 @@ final class LinuxSystem {
             if job == nil,
                let data = try? Data(contentsOf: url.appending(path: installJobName)),
                let stored = try? JSONDecoder().decode(InstallJob.self, from: data),
-               !LinuxRootImage.isInstalled(at: rootURL(for: stored.id)) {
+               !LinuxRootImage.isInstalled(at: rootURL(for: stored.id))
+            {
                 job = stored
             } else {
                 moveToTrash(url)
@@ -1308,22 +1301,20 @@ final class LinuxSystem {
         guard fm.fileExists(atPath: url.path(percentEncoded: false)) else { return }
         let trashURL = url.deletingLastPathComponent()
             .appending(path: trashPrefix + UUID().uuidString, directoryHint: .isDirectory)
-        if (try? fm.moveItem(at: url, to: trashURL)) == nil {
-            try? fm.removeItem(at: url)
-        }
+        try! fm.moveItem(at: url, to: trashURL)
     }
 
     private nonisolated static func emptyTrash() {
         for directory in [containersDirectoryURL, FileManager.default.temporaryDirectory] {
             for item in items(in: directory, withPrefix: trashPrefix) {
-                try? FileManager.default.removeItem(at: item)
+                try! FileManager.default.removeItem(at: item)
             }
         }
     }
 
     private nonisolated static func items(in directory: URL, withPrefix prefix: String) -> [URL] {
-        let items = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
-        return items.filter { $0.lastPathComponent.hasPrefix(prefix) }
+        try! FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.hasPrefix(prefix) }
     }
 
     private nonisolated static func osRelease(in builder: LinuxRootImageBuilder) throws -> OSRelease? {
@@ -1335,12 +1326,12 @@ final class LinuxSystem {
         return nil
     }
 
-    private nonisolated static func hasSystemInit(in builder: LinuxRootImageBuilder) -> Bool {
-        guard let initBinary = try? builder.contents(of: "/sbin/init") else { return false }
+    private nonisolated static func hasSystemInit(in builder: LinuxRootImageBuilder) throws -> Bool {
+        guard let initBinary = try builder.contents(of: "/sbin/init") else { return false }
         for path in ["/bin/busybox", "/usr/bin/busybox"] {
-            if (try? builder.contents(of: path)) == initBinary {
-                return (try? builder.contents(of: "/sbin/openrc")) != nil
-                    || (try? builder.contents(of: "/usr/bin/openrc")) != nil
+            if try builder.contents(of: path) == initBinary {
+                return try builder.contents(of: "/sbin/openrc") != nil
+                    || builder.contents(of: "/usr/bin/openrc") != nil
             }
         }
         return true
@@ -1348,24 +1339,23 @@ final class LinuxSystem {
 
     private nonisolated static func prepareGuestEnvironment(_ runtime: LinuxRuntime, metadata: ContainerMetadata) async throws {
         if metadata.setupCompleted {
-            try? await runtime.fileSystem.writeFile(guestMetadataPath, contents: JSONEncoder().encode(metadata))
+            try await runtime.fileSystem.writeFile(guestMetadataPath, contents: JSONEncoder().encode(metadata))
         } else {
             try await runtime.fileSystem.writeFile("/etc/hostname", contents: Data("\(metadata.name)\n".utf8), permissions: 0o644)
         }
-        if HostPasteStaging.prepareHostDirectory() {
-            var mountedVirtioFS = false
-            do {
-                try await runtime.mount(HostPasteStaging.hostDirectory, at: HostPasteStaging.guestDirectory, readOnly: true)
-                mountedVirtioFS = true
-            } catch let error as LinuxError where error == .ENODEV {
-                try? await runtime.fileSystem.createDirectory(
-                    HostPasteStaging.guestDirectory,
-                    permissions: 0o755,
-                    withIntermediateDirectories: true
-                )
-            }
-            HostPasteStaging.shared.attach(to: runtime, usesVirtioFS: mountedVirtioFS)
+        try HostPasteStaging.prepareHostDirectory()
+        var mountedVirtioFS = false
+        do {
+            try await runtime.mount(HostPasteStaging.hostDirectory, at: HostPasteStaging.guestDirectory, readOnly: true)
+            mountedVirtioFS = true
+        } catch let error as LinuxError where error == .ENODEV {
+            try await runtime.fileSystem.createDirectory(
+                HostPasteStaging.guestDirectory,
+                permissions: 0o755,
+                withIntermediateDirectories: true
+            )
         }
+        HostPasteStaging.shared.attach(to: runtime, usesVirtioFS: mountedVirtioFS)
         do {
             try await runtime.registerDevice(at: "/dev/clipboard", handler: ClipboardDevice())
         } catch let error as LinuxError where error == .ENODEV {}

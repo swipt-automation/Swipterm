@@ -1,4 +1,5 @@
 import Foundation
+import GhosttyTheme
 import Observation
 import SwiptermKit
 
@@ -120,8 +121,8 @@ final class AppSettings {
     private let store = PreferenceStore.shared
 
     private init() {
-        lightTheme = store.value(String.self, for: Key.lightTheme) ?? Self.defaultLightTheme
-        darkTheme = store.value(String.self, for: Key.darkTheme) ?? Self.defaultDarkTheme
+        lightTheme = Self.storedTheme(in: store, for: Key.lightTheme) ?? Self.defaultLightTheme
+        darkTheme = Self.storedTheme(in: store, for: Key.darkTheme) ?? Self.defaultDarkTheme
         lightConfig = store.value(String.self, for: Key.lightConfig) ?? ""
         darkConfig = store.value(String.self, for: Key.darkConfig) ?? ""
         fontFollowTheme = store.value(Bool.self, for: Key.fontFollowTheme) ?? true
@@ -133,6 +134,15 @@ final class AppSettings {
         isCaffeinateAvailable = store.value(Bool.self, for: Key.caffeinateAvailable) ?? false
         isCaffeinateEnabled = store.value(Bool.self, for: Key.caffeinateEnabled) ?? false
         shortcuts = store.value([TerminalShortcut].self, for: Key.shortcuts) ?? []
+    }
+
+    private static func storedTheme(in store: PreferenceStore, for name: String) -> String? {
+        guard let theme = store.value(String.self, for: name) else { return nil }
+        guard theme.isEmpty || GhosttyThemeCatalog.theme(named: theme) != nil else {
+            store.remove(name)
+            return nil
+        }
+        return theme
     }
 
     private func saveTerminalAppearance(_ value: some Encodable, for name: String) {

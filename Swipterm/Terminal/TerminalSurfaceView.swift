@@ -64,9 +64,6 @@ struct TerminalSurfaceView: View {
                 attachedSurface = surface
                 return
             }
-            if let old = attachedSurface, old !== surface, old.superview === self {
-                old.removeFromSuperview()
-            }
             surface.removeFromSuperview()
             surface.translatesAutoresizingMaskIntoConstraints = false
             addSubview(surface)
@@ -114,8 +111,9 @@ struct TerminalSurfaceView: View {
             TerminalInputAccessoryItem.command.title,
         ].compactMap(\.self))
 
-        weak var inMemorySession: InMemoryTerminalSession?
+        var inMemorySession: InMemoryTerminalSession?
         var readOutputActivity: (() -> OutputActivitySnapshot)?
+        var onPasteFailure: ((any Error) -> Void)?
 
         private var interceptedPresses: Set<UIPress> = []
         private var wantsFocus = false
@@ -204,7 +202,7 @@ struct TerminalSurfaceView: View {
             if touches.contains(where: { $0.type == .indirectPointer }) {
                 forgetTypedText()
             }
-            if (event?.touches(for: self)?.count ?? touches.count) == 1,
+            if event!.touches(for: self)!.count == 1,
                let touch = touches.first,
                touch.type == .direct
             {
@@ -216,7 +214,7 @@ struct TerminalSurfaceView: View {
         }
 
         override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-            if (event?.touches(for: self)?.count ?? touches.count) == 1,
+            if event!.touches(for: self)!.count == 1,
                let touch = touches.first,
                touch.type == .direct
             {
@@ -339,8 +337,7 @@ struct TerminalSurfaceView: View {
             if character.unicodeScalars.contains(where: { $0.value == 0xFE0F || $0.properties.isEmojiPresentation }) {
                 return 2
             }
-            guard let scalar = character.unicodeScalars.first else { return 1 }
-            switch scalar.value {
+            switch character.unicodeScalars.first!.value {
             case 0x1100 ... 0x115F,
                  0x2329 ... 0x232A,
                  0x2E80 ... 0x303E,
@@ -400,9 +397,14 @@ struct TerminalSurfaceView: View {
             let pasteboard = UIPasteboard.general
             let fileURLs = HostPasteStaging.fileURLs(in: pasteboard)
             if !fileURLs.isEmpty {
-                HostPasteStaging.shared.stageFileURLs(fileURLs) { [weak self] paths in
-                    guard let self, let paths else { return }
-                    _ = paste(text: paths)
+                HostPasteStaging.shared.stageFileURLs(fileURLs) { [weak self] result in
+                    guard let self else { return }
+                    do {
+                        guard let paths = try result.get() else { return }
+                        _ = paste(text: paths)
+                    } catch {
+                        onPasteFailure?(error)
+                    }
                 }
                 return
             }
@@ -422,17 +424,14 @@ struct TerminalSurfaceView: View {
                     .map { HostPasteStaging.ProviderItem(provider: provider, type: $0) }
             }
             if !providerItems.isEmpty {
-                HostPasteStaging.shared.stageProviders(providerItems) { [weak self] paths in
-                    guard let self, let paths else { return }
-                    _ = paste(text: paths)
-                }
-                return
-            }
-
-            if pasteboard.hasImages {
-                HostPasteStaging.shared.stagePasteboardFallbackImage(pasteboard) { [weak self] paths in
-                    guard let self, let paths else { return }
-                    _ = paste(text: paths)
+                HostPasteStaging.shared.stageProviders(providerItems) { [weak self] result in
+                    guard let self else { return }
+                    do {
+                        guard let paths = try result.get() else { return }
+                        _ = paste(text: paths)
+                    } catch {
+                        onPasteFailure?(error)
+                    }
                 }
                 return
             }
@@ -679,12 +678,6 @@ struct TerminalSurfaceView: View {
                     return
                 }
                 deleted = (document as NSString).rangeOfComposedCharacterSequence(at: deleted.location - 1)
-                if deleted.location < Self.documentAnchorLength {
-                    deleted = NSRange(
-                        location: Self.documentAnchorLength,
-                        length: NSMaxRange(deleted) - Self.documentAnchorLength
-                    )
-                }
             }
             if let marked = markedRange {
                 deleted = NSIntersectionRange(deleted, marked)
@@ -737,12 +730,7 @@ struct TerminalSurfaceView: View {
         }
 
         override func unmarkText() {
-            guard markedRange != nil else {
-                if super.markedTextRange != nil {
-                    _ = withSuperInput { super.setMarkedText(nil, selectedRange: NSRange(location: 0, length: 0)) }
-                }
-                return
-            }
+            guard markedRange != nil else { return }
             markedRange = nil
             if super.markedTextRange != nil {
                 _ = withSuperInput { super.setMarkedText(nil, selectedRange: NSRange(location: 0, length: 0)) }
@@ -960,7 +948,6 @@ struct TerminalSurfaceView: View {
             for _ in 0 ..< count {
                 _ = sendKey(.backspace)
             }
-            guard !typedText.isEmpty else { return }
             if typedText.contains(where: \.isNewline) {
                 _ = paste(text: typedText)
             } else if !withSuperInput({ super.insertText(typedText) }) {
@@ -988,7 +975,6 @@ struct TerminalSurfaceView: View {
 
         private func committedDocumentText() -> String {
             let withoutMarked = markedRange.map { (document as NSString).replacingCharacters(in: $0, with: "") } ?? document
-            guard withoutMarked.hasPrefix("\n") else { return withoutMarked }
             return String(withoutMarked.dropFirst())
         }
 
@@ -1047,10 +1033,15 @@ struct TerminalSurfaceView: View {
                     .map { HostPasteStaging.ProviderItem(provider: item.itemProvider, type: $0) }
             }
             if !providerItems.isEmpty {
-                HostPasteStaging.shared.stageProviders(providerItems) { [weak surfaceView] paths in
-                    guard let surfaceView, let paths else { return }
-                    surfaceView.forgetTypedText()
-                    _ = surfaceView.paste(text: paths)
+                HostPasteStaging.shared.stageProviders(providerItems) { [weak surfaceView] result in
+                    guard let surfaceView else { return }
+                    do {
+                        guard let paths = try result.get() else { return }
+                        surfaceView.forgetTypedText()
+                        _ = surfaceView.paste(text: paths)
+                    } catch {
+                        surfaceView.onPasteFailure?(error)
+                    }
                 }
                 return
             }
@@ -1061,10 +1052,15 @@ struct TerminalSurfaceView: View {
                     let urls = objects.compactMap { ($0 as? NSURL).map { $0 as URL } }
                     let fileURLs = urls.filter(\.isFileURL)
                     if !fileURLs.isEmpty {
-                        HostPasteStaging.shared.stageFileURLs(fileURLs) { [weak surfaceView] paths in
-                            guard let surfaceView, let paths else { return }
-                            surfaceView.forgetTypedText()
-                            _ = surfaceView.paste(text: paths)
+                        HostPasteStaging.shared.stageFileURLs(fileURLs) { [weak surfaceView] result in
+                            guard let surfaceView else { return }
+                            do {
+                                guard let paths = try result.get() else { return }
+                                surfaceView.forgetTypedText()
+                                _ = surfaceView.paste(text: paths)
+                            } catch {
+                                surfaceView.onPasteFailure?(error)
+                            }
                         }
                         return
                     }
@@ -1190,10 +1186,7 @@ private final class SoftwareKeyboardTracker {
     }
 
     @objc private func keyboardFrameDidChange(_ notification: Notification) {
-        guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else {
-            isOnScreen = false
-            return
-        }
+        let frame = notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! CGRect
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         guard let screenBounds = (scenes.first { $0.activationState == .foregroundActive } ?? scenes.first)?.screen.bounds else {
             isOnScreen = false

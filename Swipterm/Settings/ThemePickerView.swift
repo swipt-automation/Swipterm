@@ -27,7 +27,7 @@ struct ThemePickerView: View {
             if searchText.isEmpty {
                 ForEach(groupedKeys, id: \.self) { letter in
                     Section(letter) {
-                        ForEach(grouped[letter] ?? []) { theme in
+                        ForEach(grouped[letter]!) { theme in
                             themeRow(theme)
                         }
                     }
@@ -67,7 +67,7 @@ struct ThemePickerView: View {
     private var grouped: [String: [GhosttyThemeDefinition]] {
         Dictionary(grouping: themes) { theme in
             let first = theme.name.prefix(1).uppercased()
-            return first.first?.isLetter == true ? first : "#"
+            return first.first!.isLetter ? first : "#"
         }
     }
 

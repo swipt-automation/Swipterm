@@ -5,6 +5,7 @@ struct ManageShortcutsView: View {
 
     @State private var suggestions: [TerminalShortcut]?
     @State private var editing: TerminalShortcut?
+    @State private var suggestionFailure: String?
 
     var body: some View {
         let commands = Set(settings.shortcuts.map(\.command))
@@ -56,8 +57,22 @@ struct ManageShortcutsView: View {
                 }
             }
         }
+        .alert("Couldn’t Load Suggestions", isPresented: Binding {
+            suggestionFailure != nil
+        } set: { presented in
+            if !presented {
+                suggestionFailure = nil
+            }
+        }, presenting: suggestionFailure) { _ in
+        } message: { failure in
+            Text(failure)
+        }
         .task {
-            suggestions = await TerminalShortcut.suggestions()
+            do {
+                suggestions = try await TerminalShortcut.suggestions()
+            } catch {
+                suggestionFailure = error.localizedDescription
+            }
         }
     }
 

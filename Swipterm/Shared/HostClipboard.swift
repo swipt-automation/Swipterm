@@ -29,8 +29,8 @@ final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
             UIApplication.didBecomeActiveNotification,
         ]
         observers = names.map { name in
-            center.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
-                self?.syncOffers(force: false)
+            center.addObserver(forName: name, object: nil, queue: nil) { _ in
+                self.syncOffers(force: false)
             }
         }
     }
@@ -76,14 +76,14 @@ final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
             if pasteboard.hasURLs, let url = pasteboard.url {
                 return Data(url.absoluteString.utf8)
             }
-            if let data = Self.loadProviderData(from: pasteboard.itemProviders, conformingTo: .plainText) {
+            if let data = try Self.loadProviderData(from: pasteboard.itemProviders, conformingTo: .plainText) {
                 return data
             }
             return nil
         }
 
         if mime == "text/html" {
-            if let data = Self.loadProviderData(from: pasteboard.itemProviders, conformingTo: .html) {
+            if let data = try Self.loadProviderData(from: pasteboard.itemProviders, conformingTo: .html) {
                 return data
             }
             if let raw = pasteboard.data(forPasteboardType: UTType.html.identifier) {
@@ -97,20 +97,19 @@ final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
 
         if mime == "image/png" {
             let providers = pasteboard.itemProviders
-            if let png = Self.loadProviderData(from: providers, exactType: .png) {
+            if let png = try Self.loadProviderData(from: providers, exactType: .png) {
                 return png
             }
             if let png = pasteboard.data(forPasteboardType: UTType.png.identifier) {
                 return png
             }
-            if let rawImage = Self.loadProviderData(from: providers, conformingTo: .image),
-               let image = UIImage(data: rawImage),
-               let png = HostPasteStaging.normalizedPNGData(for: image)
+            if let rawImage = try Self.loadProviderData(from: providers, conformingTo: .image),
+               let image = UIImage(data: rawImage)
             {
-                return png
+                return HostPasteStaging.normalizedPNGData(for: image)
             }
-            if let image = pasteboard.image, let png = HostPasteStaging.normalizedPNGData(for: image) {
-                return png
+            if let image = pasteboard.image {
+                return HostPasteStaging.normalizedPNGData(for: image)
             }
             return nil
         }
@@ -123,14 +122,11 @@ final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
         default: nil
         }
         if let targetType {
-            if let data = Self.loadProviderData(from: pasteboard.itemProviders, exactType: targetType) {
+            if let data = try Self.loadProviderData(from: pasteboard.itemProviders, exactType: targetType) {
                 return data
             }
             if let data = pasteboard.data(forPasteboardType: targetType.identifier) {
                 return data
-            }
-            if targetType == .jpeg, let image = pasteboard.image {
-                return image.jpegData(compressionQuality: 0.95)
             }
         }
         return nil
@@ -212,42 +208,34 @@ final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
         return mimes
     }
 
-    private static func loadProviderData(from providers: [NSItemProvider], exactType: UTType) -> Data? {
-        for provider in providers where provider.hasItemConformingToTypeIdentifier(exactType.identifier) {
-            let matchesExact = provider.registeredTypeIdentifiers.contains { id in
-                UTType(id) == exactType
-            }
-            if matchesExact, let data = loadDataSynchronously(from: provider, typeIdentifier: exactType.identifier) {
-                return data
-            }
+    private static func loadProviderData(from providers: [NSItemProvider], exactType: UTType) throws -> Data? {
+        let provider = providers.first { provider in
+            provider.registeredTypeIdentifiers.contains { UTType($0) == exactType }
         }
-        return nil
+        return try provider.map { try loadDataSynchronously(from: $0, typeIdentifier: exactType.identifier) }
     }
 
-    private static func loadProviderData(from providers: [NSItemProvider], conformingTo target: UTType) -> Data? {
+    private static func loadProviderData(from providers: [NSItemProvider], conformingTo target: UTType) throws -> Data? {
         for provider in providers {
-            for identifier in provider.registeredTypeIdentifiers {
-                guard let candidate = UTType(identifier), candidate.conforms(to: target) else { continue }
-                if let data = loadDataSynchronously(from: provider, typeIdentifier: identifier) {
-                    return data
-                }
+            if let identifier = provider.registeredTypeIdentifiers.first(where: { UTType($0)?.conforms(to: target) == true }) {
+                return try loadDataSynchronously(from: provider, typeIdentifier: identifier)
             }
         }
         return nil
     }
 
-    private static func loadDataSynchronously(from provider: NSItemProvider, typeIdentifier: String) -> Data? {
+    private static func loadDataSynchronously(from provider: NSItemProvider, typeIdentifier: String) throws -> Data {
         final class Box: @unchecked Sendable {
-            var data: Data?
+            var result: Result<Data, any Error>?
         }
         let box = Box()
         let semaphore = DispatchSemaphore(value: 0)
-        _ = provider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { data, _ in
-            box.data = data
+        _ = provider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { data, error in
+            box.result = data.map(Result.success) ?? .failure(error!)
             semaphore.signal()
         }
-        _ = semaphore.wait(timeout: .now() + .seconds(10))
-        return box.data
+        semaphore.wait()
+        return try box.result!.get()
     }
 }
 
@@ -291,23 +279,25 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
         }
     }
 
-    static func prepareHostDirectory() -> Bool {
+    static func prepareHostDirectory() throws {
         let directory = hostDirectory
-        do {
-            try FileManager.default.createDirectory(
-                at: directory,
-                withIntermediateDirectories: true,
-                attributes: [.posixPermissions: 0o755]
-            )
-        } catch {
-            return false
+        try FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o755]
+        )
+        let cutoff = Date().addingTimeInterval(-staleFileAge)
+        for url in try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey]) {
+            if try url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate! < cutoff {
+                try FileManager.default.removeItem(at: url)
+            }
         }
-        sweepStaleFiles(in: directory)
-        return true
     }
 
-    static func removeAllFiles() {
-        try? FileManager.default.removeItem(at: hostDirectory)
+    static func removeAllFiles() throws {
+        do {
+            try FileManager.default.removeItem(at: hostDirectory)
+        } catch CocoaError.fileNoSuchFile {}
     }
 
     static func hasPasteboardContent(_ pasteboard: UIPasteboard = .general) -> Bool {
@@ -367,7 +357,7 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
         return result
     }
 
-    static func normalizedPNGData(for image: UIImage) -> Data? {
+    static func normalizedPNGData(for image: UIImage) -> Data {
         if image.imageOrientation == .up, let data = image.pngData() {
             return data
         }
@@ -377,45 +367,51 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
         let rendered = UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: image.size))
         }
-        return rendered.pngData()
+        return rendered.pngData()!
     }
 
     @MainActor
-    func stageFileURLs(_ urls: [URL], completion: @escaping @MainActor (String?) -> Void) {
+    func stageFileURLs(_ urls: [URL], completion: @escaping @MainActor (Result<String?, any Error>) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async { [self] in
-            guard Self.prepareHostDirectory() else {
-                DispatchQueue.main.async { completion(nil) }
-                return
-            }
-            var staged: [String] = []
-            for url in urls where url.isFileURL {
-                if let guestPath = stageSingleSourceFile(at: url, suggestedName: url.lastPathComponent, type: nil) {
-                    staged.append(guestPath)
+            do {
+                try Self.prepareHostDirectory()
+                let staged = try urls.compactMap { url -> String? in
+                    let isAccessingSecurityScope = url.startAccessingSecurityScopedResource()
+                    defer {
+                        if isAccessingSecurityScope {
+                            url.stopAccessingSecurityScopedResource()
+                        }
+                    }
+                    return try stageSingleSourceFile(at: url, suggestedName: url.lastPathComponent, type: nil)
                 }
+                publishAndComplete(staged, completion: completion)
+            } catch {
+                DispatchQueue.main.async { completion(.failure(error)) }
             }
-            publishAndComplete(staged, completion: completion)
         }
     }
 
     @MainActor
-    func stageProviders(_ items: [ProviderItem], completion: @escaping @MainActor (String?) -> Void) {
-        guard Self.prepareHostDirectory() else {
-            completion(nil)
+    func stageProviders(_ items: [ProviderItem], completion: @escaping @MainActor (Result<String?, any Error>) -> Void) {
+        do {
+            try Self.prepareHostDirectory()
+        } catch {
+            completion(.failure(error))
             return
         }
         final class OrderedPaths: @unchecked Sendable {
             private let lock = NSLock()
-            private var values: [String?]
+            private var values: [Result<String?, any Error>]
             init(count: Int) {
-                values = Array(repeating: nil, count: count)
+                values = Array(repeating: .success(nil), count: count)
             }
 
-            func set(_ value: String?, at index: Int) {
+            func set(_ value: Result<String?, any Error>, at index: Int) {
                 lock.withLock { values[index] = value }
             }
 
-            var compacted: [String] {
-                lock.withLock { values.compactMap(\.self) }
+            func compacted() throws -> [String] {
+                try lock.withLock { try values.compactMap { try $0.get() } }
             }
         }
         let ordered = OrderedPaths(count: items.count)
@@ -424,94 +420,61 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
             group.enter()
             let suggested = item.provider.suggestedName
             let itemType = item.type
-            item.provider.loadFileRepresentation(forTypeIdentifier: itemType.identifier) { [self] url, _ in
+            item.provider.loadFileRepresentation(forTypeIdentifier: itemType.identifier) { [self] url, error in
                 defer { group.leave() }
-                guard let url else { return }
-                let path = stageSingleSourceFile(at: url, suggestedName: suggested, type: itemType)
-                ordered.set(path, at: index)
+                ordered.set(Result {
+                    guard let url else { throw error! }
+                    return try stageSingleSourceFile(at: url, suggestedName: suggested, type: itemType)
+                }, at: index)
             }
         }
         group.notify(queue: .global(qos: .userInitiated)) { @Sendable [self] in
-            publishAndComplete(ordered.compacted, completion: completion)
+            do {
+                try publishAndComplete(ordered.compacted(), completion: completion)
+            } catch {
+                DispatchQueue.main.async { completion(.failure(error)) }
+            }
         }
     }
 
-    @MainActor
-    func stagePasteboardFallbackImage(_ pasteboard: UIPasteboard, completion: @escaping @MainActor (String?) -> Void) {
-        let pngData = pasteboard.data(forPasteboardType: UTType.png.identifier)
-        let jpegData = pngData == nil ? pasteboard.data(forPasteboardType: UTType.jpeg.identifier) : nil
-        let decodedPNG = (pngData == nil && jpegData == nil) ? pasteboard.image.flatMap(Self.normalizedPNGData) : nil
-
-        guard let payload: (data: Data, ext: String) = if let pngData {
-            (pngData, "png")
-        } else if let jpegData {
-            (jpegData, "jpg")
-        } else if let decodedPNG {
-            (decodedPNG, "png")
-        } else {
-            nil
-        } else {
-            completion(nil)
-            return
+    private func stageSingleSourceFile(at sourceURL: URL, suggestedName: String?, type: UTType?) throws -> String? {
+        if try sourceURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory! {
+            return nil
         }
-
-        DispatchQueue.global(qos: .userInitiated).async { [self] in
-            guard Self.prepareHostDirectory() else {
-                DispatchQueue.main.async { completion(nil) }
-                return
-            }
-            var staged: [String] = []
-            if let guestPath = storeFile(name: "image", extension: payload.ext, write: { try payload.data.write(to: $0, options: .atomic) }) {
-                staged.append(guestPath)
-            }
-            publishAndComplete(staged, completion: completion)
-        }
-    }
-
-    private func stageSingleSourceFile(at sourceURL: URL, suggestedName: String?, type: UTType?) -> String? {
         var resolvedType = type
         if resolvedType == nil, !sourceURL.pathExtension.isEmpty {
             resolvedType = UTType(filenameExtension: sourceURL.pathExtension)
         }
-        let (baseName, rawExtension) = Self.splitFileName(suggested: suggestedName ?? sourceURL.lastPathComponent, type: resolvedType)
+        let (baseName, rawExtension) = Self.splitFileName(suggestedName ?? sourceURL.lastPathComponent, type: resolvedType)
         let lowerExt = rawExtension.lowercased()
         let isImage = (resolvedType?.conforms(to: .image) ?? false)
             || UTType(filenameExtension: lowerExt)?.conforms(to: .image) == true
-
-        return try? sourceURL.withSecurityScopedAccess {
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: sourceURL.path(percentEncoded: false), isDirectory: &isDirectory),
-                  !isDirectory.boolValue
-            else {
-                return nil
+        if isImage, !Self.linuxNativeImageExtensions.contains(lowerExt) {
+            guard let image = try UIImage(data: Data(contentsOf: sourceURL)) else {
+                throw CocoaError(.fileReadCorruptFile, userInfo: [NSURLErrorKey: sourceURL])
             }
-            if isImage, !Self.linuxNativeImageExtensions.contains(lowerExt),
-               let data = try? Data(contentsOf: sourceURL),
-               let image = UIImage(data: data),
-               let png = Self.normalizedPNGData(for: image)
-            {
-                return storeFile(name: baseName, extension: "png") { destination in
-                    try png.write(to: destination, options: .atomic)
-                }
+            let png = Self.normalizedPNGData(for: image)
+            return try storeFile(name: baseName, extension: "png") { destination in
+                try png.write(to: destination, options: .atomic)
             }
-            return storeFile(name: baseName, extension: rawExtension) { destination in
-                try FileManager.default.copyItem(at: sourceURL, to: destination)
-            }
+        }
+        return try storeFile(name: baseName, extension: rawExtension) { destination in
+            try FileManager.default.copyItem(at: sourceURL, to: destination)
         }
     }
 
-    private func storeFile(name: String, extension fileExtension: String, write: (URL) throws -> Void) -> String? {
+    private func storeFile(name: String, extension fileExtension: String, write: (URL) throws -> Void) throws -> String {
         let cleanName = name.isEmpty ? "file" : Self.shellSafeName(name)
-        let cleanExt = fileExtension.isEmpty ? "bin" : Self.shellSafeName(fileExtension)
+        let suffix = fileExtension.isEmpty ? "" : "." + Self.shellSafeName(fileExtension)
         let directory = Self.hostDirectory
         let fileName: String = lock.withLock {
             let stamp = Int(Date().timeIntervalSince1970)
-            var candidate = "\(cleanName)-\(stamp).\(cleanExt)"
+            var candidate = "\(cleanName)-\(stamp)\(suffix)"
             var counter = 1
             while reservedNames.contains(candidate)
                 || FileManager.default.fileExists(atPath: directory.appending(path: candidate).path(percentEncoded: false))
             {
-                candidate = "\(cleanName)-\(stamp)-\(counter).\(cleanExt)"
+                candidate = "\(cleanName)-\(stamp)-\(counter)\(suffix)"
                 counter += 1
             }
             reservedNames.insert(candidate)
@@ -521,61 +484,52 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
             lock.withLock { _ = reservedNames.remove(fileName) }
         }
         let destination = directory.appending(path: fileName)
-        do {
-            try write(destination)
-            try FileManager.default.setAttributes(
-                [.posixPermissions: 0o644, .modificationDate: Date()],
-                ofItemAtPath: destination.path(percentEncoded: false)
-            )
-            return Self.guestDirectory + "/" + fileName
-        } catch {
-            try? FileManager.default.removeItem(at: destination)
-            return nil
-        }
+        try write(destination)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o644, .modificationDate: Date()],
+            ofItemAtPath: destination.path(percentEncoded: false)
+        )
+        return Self.guestDirectory + "/" + fileName
     }
 
-    private func publishAndComplete(_ guestPaths: [String], completion: @escaping @MainActor (String?) -> Void) {
+    private func publishAndComplete(_ guestPaths: [String], completion: @escaping @MainActor (Result<String?, any Error>) -> Void) {
         guard !guestPaths.isEmpty else {
-            DispatchQueue.main.async { completion(nil) }
+            DispatchQueue.main.async { completion(.success(nil)) }
             return
         }
         let (targetRuntime, virtioFS) = lock.withLock { (runtime, usesVirtioFS) }
+        let joined = guestPaths.joined(separator: " ")
         if !virtioFS, let targetRuntime {
             let hostDir = Self.hostDirectory
             Task.detached(priority: .userInitiated) {
-                var synced: [String] = []
-                for guestPath in guestPaths {
-                    let fileName = (guestPath as NSString).lastPathComponent
-                    let hostFile = hostDir.appending(path: fileName)
-                    if let data = try? Data(contentsOf: hostFile),
-                       (try? await targetRuntime.fileSystem.writeFile(guestPath, contents: data, permissions: 0o644)) != nil
-                    {
-                        synced.append(guestPath)
+                let result: Result<String?, any Error>
+                do {
+                    for guestPath in guestPaths {
+                        let hostFile = hostDir.appending(path: (guestPath as NSString).lastPathComponent)
+                        try await targetRuntime.fileSystem.writeFile(guestPath, contents: Data(contentsOf: hostFile), permissions: 0o644)
                     }
+                    result = .success(joined)
+                } catch {
+                    result = .failure(error)
                 }
-                let joined = synced.isEmpty ? nil : synced.joined(separator: " ")
                 await MainActor.run {
-                    completion(joined)
+                    completion(result)
                 }
             }
             return
         }
-        let joined = guestPaths.joined(separator: " ")
         DispatchQueue.main.async {
-            completion(joined)
+            completion(.success(joined))
         }
     }
 
-    private static func splitFileName(suggested: String?, type: UTType?) -> (name: String, extension: String) {
-        let preferred = type?.preferredFilenameExtension ?? "bin"
-        guard let suggested = suggested as NSString?, suggested.length > 0 else {
-            return ((type?.conforms(to: .image) ?? false) ? "image" : "file", preferred)
+    private static func splitFileName(_ fileName: String, type: UTType?) -> (name: String, extension: String) {
+        let fileName = fileName as NSString
+        let ext = fileName.pathExtension
+        if ext.isEmpty {
+            return (fileName as String, type?.preferredFilenameExtension ?? "")
         }
-        let ext = suggested.pathExtension
-        return (
-            ext.isEmpty ? (suggested as String) : suggested.deletingPathExtension,
-            ext.isEmpty ? preferred : ext
-        )
+        return (fileName.deletingPathExtension, ext)
     }
 
     private static func shellSafeName(_ name: String) -> String {
@@ -586,19 +540,5 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
         let lhs = (url.absoluteString.removingPercentEncoding ?? url.absoluteString).trimmingCharacters(in: .whitespacesAndNewlines)
         let rhs = (string.removingPercentEncoding ?? string).trimmingCharacters(in: .whitespacesAndNewlines)
         return lhs == rhs
-    }
-
-    private static func sweepStaleFiles(in directory: URL) {
-        let cutoff = Date().addingTimeInterval(-staleFileAge)
-        let urls = (try? FileManager.default.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: [.contentModificationDateKey]
-        )) ?? []
-        for url in urls {
-            let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-            if modified < cutoff {
-                try? FileManager.default.removeItem(at: url)
-            }
-        }
     }
 }

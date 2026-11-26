@@ -30,9 +30,9 @@
                 var token: Int32 = 0
                 let status = notify_register_dispatch(name, &token, .main) { token in
                     var state: UInt64 = 0
-                    guard notify_get_state(token, &state) == NOTIFY_STATUS_OK,
-                          let index = Int(exactly: state), index > 0 else { return }
-                    MainActor.assumeIsolated { onRequest(index) }
+                    let status = notify_get_state(token, &state)
+                    precondition(status == NOTIFY_STATUS_OK, "Could not read \(name): \(status)")
+                    MainActor.assumeIsolated { onRequest(Int(state)) }
                 }
                 precondition(status == NOTIFY_STATUS_OK, "Could not subscribe to \(name): \(status)")
                 self.token = token

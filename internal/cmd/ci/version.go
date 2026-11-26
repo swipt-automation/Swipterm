@@ -171,40 +171,51 @@ func fetchNightly() bool {
 		command := exec.Command("git", "fetch", "--depth=1", "-f", "origin", "tag", "nightly")
 		command.Stdout = os.Stdout
 		command.Stderr = io.MultiWriter(os.Stderr, &stderr)
-		if command.Run() == nil {
+		err := command.Run()
+		if err == nil {
 			return true
 		}
-		if !serverGitError.Match(stderr.Bytes()) {
+		if bytes.Contains(stderr.Bytes(), []byte("couldn't find remote ref")) {
 			return false
+		}
+		if !serverGitError.Match(stderr.Bytes()) {
+			log.Fatal(err)
 		}
 		time.Sleep(10 * time.Second)
 	}
 }
 
 func nightlyMetadata(repository string) metadata {
-	var released metadata
+	url := "https://github.com/" + repository + "/releases/download/nightly/metadata.json"
 	for attempt := range 4 {
 		if attempt > 0 {
 			time.Sleep(time.Second << (attempt - 1))
 		}
-		response, err := http.Get("https://github.com/" + repository + "/releases/download/nightly/metadata.json")
+		response, err := http.Get(url)
 		if err != nil {
 			log.Print(err)
 			continue
 		}
-		if response.StatusCode == http.StatusOK {
+		switch {
+		case response.StatusCode == http.StatusOK:
+			var released metadata
 			err = json.NewDecoder(response.Body).Decode(&released)
 			response.Body.Close()
 			if err != nil {
-				log.Print(err)
-				return metadata{}
+				log.Fatal(err)
 			}
 			return released
-		}
-		response.Body.Close()
-		if !slices.Contains(transientStatusCodes, response.StatusCode) {
+		case response.StatusCode == http.StatusNotFound:
+			response.Body.Close()
 			return metadata{}
+		case slices.Contains(transientStatusCodes, response.StatusCode):
+			response.Body.Close()
+			log.Print("GET ", url, ": ", response.Status)
+		default:
+			response.Body.Close()
+			log.Fatal("GET ", url, ": ", response.Status)
 		}
 	}
+	log.Fatal("GET ", url, ": retries exhausted")
 	return metadata{}
 }

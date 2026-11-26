@@ -28,7 +28,7 @@
             isRecommended: true
         )
 
-        // The guest's /etc/motd is displayed in English in every app localization.
+        /// The guest's /etc/motd is displayed in English in every app localization.
         static let loginScreen: String = {
             let hostname = LinuxDistribution.alpine.defaultContainerName
             let motd = """
@@ -68,8 +68,6 @@
 
     struct StoreScreenshotBatch<Content: View>: View {
         private let channel = ProcessInfo.processInfo.environment["SWIPTERM_SCREENSHOT_BATCH"]
-        private let languages = ProcessInfo.processInfo.environment["SWIPTERM_SCREENSHOT_LANGUAGES"]?
-            .split(separator: ",").map { Locale(identifier: String($0)) } ?? []
 
         @ViewBuilder let content: () -> Content
         @State private var localization = StoreScreenshotLocalization()
@@ -83,8 +81,10 @@
                 .transaction { $0.disablesAnimations = true }
                 .background {
                     if let channel {
+                        let languages = ProcessInfo.processInfo.environment["SWIPTERM_SCREENSHOT_LANGUAGES"]!
+                            .split(separator: ",").map { Locale(identifier: String($0)) }
                         StoreScreenshotControl(name: channel, index: request, direction: localization.direction) { index in
-                            guard index > request, index <= languages.count else { return }
+                            precondition(index > request && index <= languages.count, "Unexpected screenshot request \(index)")
                             localization.locale = languages[index - 1]
                             request = index
                         }

@@ -3,7 +3,7 @@ import GRDB
 import os
 
 enum AppDatabase {
-    nonisolated static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Swipterm", category: "storage")
+    nonisolated static let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "storage")
 
     private static let url = URL.applicationSupportDirectory.appending(path: "Swipterm.sqlite")
 
@@ -44,7 +44,7 @@ enum AppDatabase {
     }()
 
     private nonisolated static func createTables(_ db: Database) throws {
-        try db.create(table: "preferences", options: .ifNotExists) { t in
+        try db.create(table: "preferences") { t in
             t.primaryKey("name", .text)
             t.column("data", .blob).notNull()
         }

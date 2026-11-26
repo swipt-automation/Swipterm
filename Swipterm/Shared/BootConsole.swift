@@ -171,7 +171,7 @@ nonisolated struct DownloadMeter {
     private let start: ContinuousClock.Instant
     private let name: String
     private var now: ContinuousClock.Instant
-    private var bytesWritten: Int64?
+    private var bytesWritten: Int64 = 0
     private var totalBytes: Int64?
     private var samples: [Sample] = []
 
@@ -192,7 +192,6 @@ nonisolated struct DownloadMeter {
     }
 
     func lines(width: Int) -> [String] {
-        guard let bytesWritten else { return [] }
         let elapsed = start.duration(to: now) / .seconds(1)
         let complete = totalBytes.map { bytesWritten >= $0 } ?? false
         let rate = complete ? Double(bytesWritten) / elapsed : recentRate
@@ -203,15 +202,15 @@ nonisolated struct DownloadMeter {
             eta = ConsoleFormat.clock(Double(totalBytes - bytesWritten) / rate)
         }
         let fields = [ConsoleFormat.transfer(bytesWritten, of: totalBytes), rate.map(ConsoleFormat.rate), eta].compactMap(\.self)
-        let fraction = totalBytes.map { min(max(Double(bytesWritten) / Double(max($0, 1)), 0), 1) }
+        let fraction = totalBytes.map { Double(bytesWritten) / Double(max($0, 1)) }
         return ConsoleLayout.progress(name: name, fields: fields, fraction: fraction, width: width)
     }
 
     private var recentRate: Double? {
-        guard let first = samples.first, let last = samples.last else { return nil }
+        let first = samples.first!, last = samples.last!
         let span = first.time.duration(to: last.time)
         guard span >= .seconds(1) else { return nil }
-        return max(Double(last.bytes - first.bytes) / (span / .seconds(1)), 0)
+        return Double(last.bytes - first.bytes) / (span / .seconds(1))
     }
 }
 
@@ -300,7 +299,7 @@ nonisolated enum ConsoleLayout {
     }
 
     private static func bar(_ fraction: Double, width: Int) -> String {
-        let inner = max(width - 2, 0)
+        let inner = width - 2
         let filled = Int(Double(inner) * fraction)
         return "[" + String(repeating: "#", count: filled) + String(repeating: "-", count: inner - filled) + "]"
     }

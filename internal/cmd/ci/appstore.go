@@ -57,7 +57,7 @@ func releasedAppStoreVersions(ctx context.Context) []string {
 	}
 	var released []string
 	for _, version := range versions.Data {
-		if version.Attributes.AppStoreState != nil && slices.Contains(releasedStates, *version.Attributes.AppStoreState) {
+		if slices.Contains(releasedStates, *version.Attributes.AppStoreState) {
 			released = append(released, *version.Attributes.VersionString)
 		}
 	}

@@ -118,7 +118,7 @@ nonisolated struct LinuxReleaseImage: Identifiable, Hashable, Codable, Sendable 
 
 nonisolated struct ContainerSetup: Codable, Equatable, Sendable {
     var password: String?
-    var software: ContainerSoftware?
+    var software: ContainerSoftware
 }
 
 nonisolated struct ContainerMetadata: Codable, Equatable, Sendable {
@@ -215,34 +215,17 @@ private nonisolated enum LinuxDistributionCatalogClient {
     static let voidServerURL = URL(string: "https://repo-fastly.voidlinux.org")!
 
     static func fetchARM64Catalog() async throws -> [LinuxDistribution: [LinuxReleaseImage]] {
-        async let lxc = Result { try await fetchLXCIndex() }
-        async let void = Result { try await fetchVoid() }
+        async let lxc = fetchLXCIndex()
+        async let void = fetchVoid()
 
-        var grouped: [LinuxDistribution: [LinuxReleaseImage]] = [:]
-        var firstError: Error?
-        for result in await [lxc, void] {
-            switch result {
-            case let .success(images):
-                for image in images {
-                    grouped[image.distribution, default: []].append(image)
-                }
-            case let .failure(error):
-                firstError = firstError ?? error
-            }
-        }
-        if grouped.isEmpty, let firstError {
-            throw firstError
-        }
-
-        for distribution in grouped.keys {
-            grouped[distribution]?.sort { lhs, rhs in
+        return try await Dictionary(grouping: lxc + void, by: \.distribution).mapValues { images in
+            images.sorted { lhs, rhs in
                 if lhs.sortRank != rhs.sortRank {
                     return lhs.sortRank > rhs.sortRank
                 }
                 return lhs.displayTitle.localizedStandardCompare(rhs.displayTitle) == .orderedDescending
             }
         }
-        return grouped
     }
 
     private static func fetch(_ path: String, from server: URL) async throws -> String {

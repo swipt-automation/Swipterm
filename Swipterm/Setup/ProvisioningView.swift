@@ -82,7 +82,7 @@ private final class SetupTerminal {
     private(set) var backgroundColor: TerminalColor?
 
     @ObservationIgnored private let session: InMemoryTerminalSession
-    @ObservationIgnored private let extras = TerminalExtras()
+    @ObservationIgnored private let extras: TerminalExtras
     @ObservationIgnored private var subscription: UUID?
     @ObservationIgnored private var cancellables: Set<AnyCancellable> = []
 
@@ -90,10 +90,8 @@ private final class SetupTerminal {
         session = InMemoryTerminalSession(
             write: { _ in },
             resize: { viewport in
-                let columns = UInt16(clamping: viewport.columns)
-                let rows = UInt16(clamping: viewport.rows)
                 Task { @MainActor in
-                    LinuxSystem.shared.resizeSetupTerminal(columns: columns, rows: rows)
+                    LinuxSystem.shared.resizeSetupTerminal(columns: viewport.columns, rows: viewport.rows)
                 }
             }
         )
@@ -103,7 +101,7 @@ private final class SetupTerminal {
             terminalConfiguration: TerminalAppearance.fontConfiguration()
         )
         state.configuration = TerminalSurfaceOptions(backend: .inMemory(session))
-        extras.state = state
+        extras = TerminalExtras(state: state)
 
         let view = TerminalSurfaceView.SurfaceView(frame: .zero)
         view.controller = state.controller
@@ -119,7 +117,6 @@ private final class SetupTerminal {
     }
 
     func attach() {
-        guard subscription == nil else { return }
         let session = session
         subscription = LinuxSystem.shared.subscribeConsole { [weak self] data in
             session.receive(data)
@@ -130,9 +127,7 @@ private final class SetupTerminal {
     }
 
     func detach() {
-        if let subscription {
-            LinuxSystem.shared.unsubscribeConsole(subscription)
-        }
+        LinuxSystem.shared.unsubscribeConsole(subscription!)
         subscription = nil
         surfaceView.setSurfaceVisible(false)
     }

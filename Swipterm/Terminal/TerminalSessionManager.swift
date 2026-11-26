@@ -17,8 +17,6 @@ final class TerminalSessionManager {
     func ensureInitialSession() {
         if sessions.isEmpty {
             addSession()
-        } else if activeSessionID == nil {
-            activeSessionID = sessions.first?.id
         }
     }
 
@@ -57,10 +55,8 @@ final class TerminalSessionManager {
     }
 
     func selectAdjacentSession(offset: Int) {
-        guard sessions.count > 1,
-              let currentID = activeSessionID,
-              let currentIndex = sessions.firstIndex(where: { $0.id == currentID })
-        else { return }
+        guard sessions.count > 1 else { return }
+        let currentIndex = sessions.firstIndex { $0.id == activeSessionID }!
         let nextIndex = (currentIndex + offset + sessions.count) % sessions.count
         activeSessionID = sessions[nextIndex].id
     }

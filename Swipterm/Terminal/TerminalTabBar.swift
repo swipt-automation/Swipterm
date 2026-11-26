@@ -52,7 +52,7 @@ struct TerminalTabBar: View {
     }
 
     private func tabStrip(width: CGFloat) -> some View {
-        let visibleCount = CGFloat(min(max(sessionManager.sessions.count, 1), Self.maximumVisibleTabs))
+        let visibleCount = CGFloat(min(sessionManager.sessions.count, Self.maximumVisibleTabs))
         let tabWidth = max((width - Self.padding * 2 - Self.spacing * (visibleCount - 1)) / visibleCount, 0)
         return ScrollViewReader { proxy in
             ScrollView(.horizontal) {

@@ -15,7 +15,7 @@ struct LegacyTabDrop: DropDelegate {
         return DropProposal(operation: .move)
     }
 
-    func dropExited(info: DropInfo) {
+    func dropExited(info _: DropInfo) {
         edgeScroller.stop()
     }
 
@@ -24,9 +24,6 @@ struct LegacyTabDrop: DropDelegate {
         let providers = info.itemProviders(for: [SessionDrag.contentType])
         let order = sessionManager.sessions.map(\.id)
         let width = edgeScroller.contentWidth
-        guard !providers.isEmpty, !order.isEmpty, width > 0, width.isFinite, info.location.x.isFinite else {
-            return false
-        }
 
         let x = layoutDirection == .rightToLeft ? width - info.location.x : info.location.x
         let pitch = (width + spacing) / CGFloat(order.count)
@@ -34,8 +31,8 @@ struct LegacyTabDrop: DropDelegate {
 
         var pending = providers.count
         var dragged = Set<UUID>()
-        let receive: @MainActor @Sendable (SessionDrag?) -> Void = { item in
-            if let item { dragged.insert(item.id) }
+        let receive: @MainActor @Sendable (SessionDrag) -> Void = { item in
+            dragged.insert(item.id)
             pending -= 1
             guard pending == 0, !dragged.contains(order[target]),
                   let source = order.firstIndex(where: dragged.contains)
@@ -49,7 +46,7 @@ struct LegacyTabDrop: DropDelegate {
 
         for provider in providers {
             _ = provider.loadTransferable(type: SessionDrag.self) { result in
-                Task { @MainActor in receive(try? result.get()) }
+                Task { @MainActor in receive(try! result.get()) }
             }
         }
         return true

@@ -8,6 +8,7 @@ struct SettingsView: View {
     private static let memoryLimits = ([512, 1024, 2048, 3072, 4096, 6144, 8192, 12288, 16384] as [UInt64])
         .map { $0 << 20 }
         .filter { $0 < ProcessInfo.processInfo.physicalMemory }
+    private static let gpuModes: [GPUMode] = [.automatic] + LinuxRuntime.availableGPUBackends.map(GPUMode.init) + [.disabled]
 
     private let system = LinuxSystem.shared
     @Bindable private var settings = AppSettings.shared
@@ -17,7 +18,7 @@ struct SettingsView: View {
     @State private var newContainerDraft = SetupDraft()
     @State private var isCreatingContainer = false
     @State private var isImportingContainer = false
-    @State private var gpuBackends: [LinuxRuntime.GPUBackend] = []
+    @State private var importFailure: String?
 
     var body: some View {
         Form {
@@ -37,7 +38,7 @@ struct SettingsView: View {
                     Text(Int64(size), format: .byteCount(style: .memory))
                 }
                 Picker("GPU", selection: $settings.gpuMode) {
-                    ForEach(gpuModes, id: \.self) { mode in
+                    ForEach(Self.gpuModes, id: \.self) { mode in
                         Group {
                             switch mode {
                             case .automatic:
@@ -119,20 +120,27 @@ struct SettingsView: View {
             SetupView(draft: $newContainerDraft)
         }
         .fileImporter(isPresented: $isImportingContainer, allowedContentTypes: SetupView.supportedArchiveTypes) { result in
-            if let url = try? result.get() {
-                system.install(.importArchive(url))
+            do {
+                try system.install(.importArchive(result.get()))
+            } catch {
+                importFailure = error.localizedDescription
             }
+        }
+        .alert("Can’t Create Container", isPresented: Binding {
+            importFailure != nil
+        } set: { presented in
+            if !presented {
+                importFailure = nil
+            }
+        }, presenting: importFailure) { _ in
+        } message: { failure in
+            Text(failure)
         }
         .alert("No Location Access", isPresented: $location.isPresentingDeniedAlert) {
             Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
+                UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)
             }
             Button("OK", role: .cancel) {}
-        }
-        .task {
-            gpuBackends = await Task.detached { LinuxRuntime.availableGPUBackends }.value
         }
         .onAppear {
             location.isSettingsVisible = true
@@ -141,14 +149,6 @@ struct SettingsView: View {
             location.isSettingsVisible = false
             location.isPresentingDeniedAlert = false
         }
-    }
-
-    private var gpuModes: [GPUMode] {
-        var modes: [GPUMode] = [.automatic] + gpuBackends.map(GPUMode.init) + [.disabled]
-        if !modes.contains(settings.gpuMode) {
-            modes.insert(settings.gpuMode, at: modes.count - 1)
-        }
-        return modes
     }
 
     private var caffeinateToggle: some View {
@@ -278,7 +278,7 @@ private struct LimitSliderRow<Value: BinaryInteger>: View {
     }
 
     private func value(for index: Double) -> Value? {
-        let clamped = min(max(Int(index.rounded()), 0), limits.count)
-        return clamped < limits.count ? limits[clamped] : nil
+        let index = Int(index.rounded())
+        return index < limits.count ? limits[index] : nil
     }
 }

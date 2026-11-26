@@ -76,8 +76,8 @@
                     if !presented {
                         jit.dismissError()
                     }
-                }) {} message: {
-                    Text(jit.errorMessage ?? "")
+                }, presenting: jit.errorMessage) { _ in } message: { message in
+                    Text(message)
                 }
             }
             .navigationTitle(Text(verbatim: "JIT"))

@@ -48,6 +48,6 @@ nonisolated struct OSRelease: Sendable {
     }
 
     var majorVersion: String? {
-        versionID?.split(separator: ".").first.map(String.init)
+        versionID.map { String($0.split(separator: ".")[0]) }
     }
 }

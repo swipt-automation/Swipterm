@@ -25,7 +25,7 @@ final class TerminalSession: Identifiable {
     let number: Int
     let shortcut: TerminalShortcut?
     let state: TerminalViewState
-    let extras = TerminalExtras()
+    let extras: TerminalExtras
     let search: TerminalSearch
     /// Retain a single UITerminalView per session so Ghostty preserves grid and scrollback across layout detaches.
     let surfaceView: TerminalSurfaceView.SurfaceView
@@ -38,7 +38,7 @@ final class TerminalSession: Identifiable {
 
     @ObservationIgnored private let session: InMemoryTerminalSession
     @ObservationIgnored private let relay: TerminalRelay
-    @ObservationIgnored private let startedAt = Date()
+    @ObservationIgnored private let startedAt = ContinuousClock.now
     @ObservationIgnored private var startTask: Task<Void, Never>?
     @ObservationIgnored private var isClosed = false
     @ObservationIgnored private var cancellables: Set<AnyCancellable> = []
@@ -53,7 +53,7 @@ final class TerminalSession: Identifiable {
                 relay.sendInput(data)
             },
             resize: { viewport in
-                relay.resize(columns: UInt16(clamping: viewport.columns), rows: UInt16(clamping: viewport.rows))
+                relay.resize(columns: viewport.columns, rows: viewport.rows)
             }
         )
         session.setOutputBacklogHandler(highWater: 4 << 20, lowWater: 1 << 20) { isBacklogged in
@@ -65,7 +65,7 @@ final class TerminalSession: Identifiable {
             terminalConfiguration: TerminalAppearance.fontConfiguration()
         )
         state.configuration = TerminalSurfaceOptions(backend: .inMemory(session))
-        extras.state = state
+        extras = TerminalExtras(state: state)
         search = TerminalSearch(terminal: state)
 
         let view = TerminalSurfaceView.SurfaceView(frame: .zero)
@@ -73,8 +73,8 @@ final class TerminalSession: Identifiable {
         view.configuration = state.configuration
         view.delegate = extras
         view.inMemorySession = session
-        view.readOutputActivity = { [weak relay] in
-            relay?.outputActivitySnapshot() ?? .init(wasQuietBeforeInput: false, outputCountBeforeInput: 0, currentOutputCount: 0)
+        view.readOutputActivity = {
+            relay.outputActivitySnapshot()
         }
         surfaceView = view
 
@@ -147,17 +147,15 @@ final class TerminalSession: Identifiable {
                     session.receive(Data("\u{1B}[0m\u{1B}[2J\u{1B}[3J\u{1B}[H".utf8))
                 }
             }
-            guard !isClosed, !Task.isCancelled else { return }
+            guard !isClosed else { return }
             let size = relay.size
             let handle = try await LinuxSystem.shared.openSession(columns: size.columns, rows: size.rows)
-            guard !isClosed, !Task.isCancelled else {
+            guard !isClosed else {
                 handle.terminal.close()
                 return
             }
             relay.attach(handle.terminal, openedWith: size)
-            if phase == .starting {
-                phase = .running
-            }
+            phase = .running
 
             let terminal = handle.terminal
             let process = handle.process
@@ -201,7 +199,7 @@ final class TerminalSession: Identifiable {
         } catch is CancellationError {
             return
         } catch {
-            guard !isClosed, !Task.isCancelled else { return }
+            guard !isClosed else { return }
             phase = .finished(.failed(error.localizedDescription))
         }
     }
@@ -217,7 +215,7 @@ final class TerminalSession: Identifiable {
 
     private func didTerminate(_ termination: LinuxProcess.Termination) {
         guard !isClosed else { return }
-        let runtime = UInt64(max(0, Date().timeIntervalSince(startedAt)) * 1000)
+        let runtime = UInt64((ContinuousClock.now - startedAt) / .milliseconds(1))
         switch termination {
         case let .exited(code):
             session.finish(exitCode: UInt32(code), runtimeMilliseconds: runtime)
@@ -229,7 +227,7 @@ final class TerminalSession: Identifiable {
             session.finish(exitCode: UInt32(128 + signal.rawValue), runtimeMilliseconds: runtime)
             phase = .finished(.signaled(signal.rawValue))
         }
-        relay.abort()?.close()
+        _ = relay.abort()
     }
 
     private func applySettings() {
@@ -245,8 +243,12 @@ final class TerminalSession: Identifiable {
         content.sound = .default
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         Task {
-            guard (try? await center.requestAuthorization(options: [.alert, .sound])) == true else { return }
-            try? await center.add(request)
+            do {
+                guard try await center.requestAuthorization(options: [.alert, .sound]) else { return }
+                try await center.add(request)
+            } catch {
+                extras.onNotificationFailure?(error)
+            }
         }
     }
 }
@@ -255,24 +257,12 @@ enum TerminalAppearance {
     static func theme() -> TerminalTheme {
         let settings = AppSettings.shared
         return TerminalTheme(
-            light: configuration(
-                themeName: settings.lightTheme,
-                customText: settings.lightConfig,
-                fallback: .alabaster
-            ),
-            dark: configuration(
-                themeName: settings.darkTheme,
-                customText: settings.darkConfig,
-                fallback: .afterglow
-            )
+            light: configuration(themeName: settings.lightTheme, customText: settings.lightConfig),
+            dark: configuration(themeName: settings.darkTheme, customText: settings.darkConfig)
         )
     }
 
-    private static func configuration(
-        themeName: String,
-        customText: String,
-        fallback: TerminalConfiguration
-    ) -> TerminalConfiguration {
+    private static func configuration(themeName: String, customText: String) -> TerminalConfiguration {
         guard !themeName.isEmpty else {
             return TerminalConfiguration { builder in
                 for rawLine in customText.split(separator: "\n") {
@@ -285,7 +275,7 @@ enum TerminalAppearance {
                 }
             }
         }
-        return GhosttyThemeCatalog.theme(named: themeName)?.toTerminalConfiguration() ?? fallback
+        return GhosttyThemeCatalog.theme(named: themeName)!.toTerminalConfiguration()
     }
 
     static func fontConfiguration() -> TerminalConfiguration {

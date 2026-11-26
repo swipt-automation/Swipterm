@@ -11,6 +11,8 @@ struct TerminalContainerView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var splitState = TerminalSplitPresentationState()
     @State private var pendingPaste: TerminalClipboardConfirmationRequest?
+    @State private var pasteFailure: String?
+    @State private var notificationFailure: String?
 
     var body: some View {
         let isRunning = system.state == .running
@@ -58,6 +60,26 @@ struct TerminalContainerView: View {
         } message: { _ in
             Text("This text contains line breaks and may run commands as soon as it is pasted.")
         }
+        .alert("Couldn’t Paste", isPresented: Binding {
+            pasteFailure != nil
+        } set: { presented in
+            if !presented {
+                pasteFailure = nil
+            }
+        }, presenting: pasteFailure) { _ in
+        } message: { failure in
+            Text(failure)
+        }
+        .alert("Couldn’t Show Notification", isPresented: Binding {
+            notificationFailure != nil
+        } set: { presented in
+            if !presented {
+                notificationFailure = nil
+            }
+        }, presenting: notificationFailure) { _ in
+        } message: { failure in
+            Text(failure)
+        }
         .onChange(of: showSettings, initial: true) { _, isPresented in
             splitState.isSettingsPresented = isPresented
         }
@@ -85,6 +107,12 @@ struct TerminalContainerView: View {
         session.extras.onPasteConfirmation = { request in
             pendingPaste = request
         }
+        session.extras.onNotificationFailure = { error in
+            notificationFailure = error.localizedDescription
+        }
+        session.surfaceView.onPasteFailure = { error in
+            pasteFailure = error.localizedDescription
+        }
         session.extras.onCommandKey = { key, modifiers in
             guard system.state == .running else { return false }
             if modifiers == [.command, .shift] {
@@ -111,11 +139,8 @@ struct TerminalContainerView: View {
             case "e":
                 return session.state.performBindingAction("search_selection")
             case "1", "2", "3", "4", "5", "6", "7", "8", "9":
-                if let index = Int(key) {
-                    sessionManager.selectSession(at: index - 1)
-                    return true
-                }
-                return false
+                sessionManager.selectSession(at: Int(key)! - 1)
+                return true
             default:
                 return false
             }

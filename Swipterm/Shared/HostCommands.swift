@@ -144,10 +144,10 @@ nonisolated enum HostCommands {
                 try await handleOpen(invocation, arguments: invocation.arguments[...], commandName: name, strictHelp: false)
             }
         }
-        await installShellCompletions(on: runtime.fileSystem)
+        try await installShellCompletions(on: runtime.fileSystem)
     }
 
-    private static func installShellCompletions(on fileSystem: LinuxFileSystem) async {
+    private static func installShellCompletions(on fileSystem: LinuxFileSystem) async throws {
         let files: [(directory: String, path: String, contents: String)] = [
             ("/usr/share/bash-completion/completions", "/usr/share/bash-completion/completions/swipterm", bashCompletionScript),
             ("/etc/profile.d", "/etc/profile.d/zz-swipterm-completion.sh", bashProfileHook),
@@ -156,24 +156,36 @@ nonisolated enum HostCommands {
             ("/usr/share/nushell/vendor/autoload", "/usr/share/nushell/vendor/autoload/swipterm.nu", nushellCompletionScript),
         ]
         for file in files {
-            try? await fileSystem.createDirectory(file.directory, withIntermediateDirectories: true)
-            try? await fileSystem.writeFile(file.path, contents: Data(file.contents.utf8))
+            try await fileSystem.createDirectory(file.directory, withIntermediateDirectories: true)
+            try await fileSystem.writeFile(file.path, contents: Data(file.contents.utf8))
         }
-        var zloginPath: String?
-        if (try? await fileSystem.stat("/etc/zsh"))?.type == .directory {
-            zloginPath = "/etc/zsh/zlogin"
-        } else if (try? await fileSystem.stat("/bin/zsh")) != nil {
-            zloginPath = "/etc/zlogin"
-        } else if (try? await fileSystem.stat("/usr/bin/zsh")) != nil {
-            zloginPath = "/etc/zlogin"
-        }
-        if let zloginPath {
-            let existing = (try? await fileSystem.contents(of: zloginPath)).map { String(decoding: $0, as: UTF8.self) } ?? ""
-            if !existing.contains(zshLoginHook) {
-                let separator = existing.isEmpty || existing.hasSuffix("\n") ? "" : "\n"
-                let updated = existing + separator + zshLoginHook + "\n"
-                try? await fileSystem.writeFile(zloginPath, contents: Data(updated.utf8))
+        func fileType(at path: String) async throws -> LinuxFileType? {
+            do {
+                return try await fileSystem.stat(path).type
+            } catch let error as LinuxError where error == .ENOENT {
+                return nil
             }
+        }
+        let zloginPath: String
+        if try await fileType(at: "/etc/zsh") == .directory {
+            zloginPath = "/etc/zsh/zlogin"
+        } else if try await fileType(at: "/bin/zsh") != nil {
+            zloginPath = "/etc/zlogin"
+        } else if try await fileType(at: "/usr/bin/zsh") != nil {
+            zloginPath = "/etc/zlogin"
+        } else {
+            return
+        }
+        let existing: String
+        do {
+            existing = try await String(decoding: fileSystem.contents(of: zloginPath), as: UTF8.self)
+        } catch let error as LinuxError where error == .ENOENT {
+            existing = ""
+        }
+        if !existing.contains(zshLoginHook) {
+            let separator = existing.isEmpty || existing.hasSuffix("\n") ? "" : "\n"
+            let updated = existing + separator + zshLoginHook + "\n"
+            try await fileSystem.writeFile(zloginPath, contents: Data(updated.utf8))
         }
     }
 
@@ -378,9 +390,7 @@ nonisolated enum HostCommands {
     ]
 
     private static func completionCandidates(for words: [String]) -> [(value: String, description: String)] {
-        guard let first = words.first else {
-            return []
-        }
+        let first = words[0]
         if words.count == 1 {
             if first.hasPrefix("-") {
                 return [

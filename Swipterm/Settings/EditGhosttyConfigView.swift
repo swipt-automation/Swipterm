@@ -56,8 +56,9 @@ struct EditGhosttyConfigView: View {
                 importError != nil
             } set: { _ in
                 importError = nil
-            }) {} message: {
-                Text(importError ?? "")
+            }, presenting: importError) { _ in
+            } message: { importError in
+                Text(importError)
             }
             .onDisappear {
                 AppSettings.shared[keyPath: configuration] = content
