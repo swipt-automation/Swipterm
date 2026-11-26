@@ -93,7 +93,7 @@ final class TerminalSession: Identifiable {
 
     var title: String {
         let trimmed = extras.title.trimmingCharacters(in: .whitespaces)
-        return trimmed.isEmpty ? shortcut?.name ?? LinuxSystem.shared.installedContainer?.name ?? "" : trimmed
+        return trimmed.isEmpty ? shortcut?.name ?? LinuxSystem.shared.activeContainer?.metadata.name ?? "" : trimmed
     }
 
     var workingDirectory: String {

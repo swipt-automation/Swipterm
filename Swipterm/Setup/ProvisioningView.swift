@@ -31,7 +31,7 @@ struct ProvisioningView: View {
             if provisioning.failure == nil {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", role: .cancel) {
-                        system.reset()
+                        system.cancelSetup()
                     }
                 }
             }
@@ -42,10 +42,10 @@ struct ProvisioningView: View {
             }
             Button("Copy Output") {
                 UIPasteboard.general.string = system.consoleText
-                system.reset()
+                system.cancelSetup()
             }
             Button("OK", role: .cancel) {
-                system.reset()
+                system.cancelSetup()
             }
         } message: { failure in
             Text(failure)

@@ -36,6 +36,7 @@ struct SetupView: View {
     private let system = LinuxSystem.shared
 
     @State private var showFileImporter = false
+    @State private var importsContainer = false
     @State private var showSoftware = false
     @State private var errorMessage: String?
     @State private var catalogFailure: String?
@@ -82,6 +83,7 @@ struct SetupView: View {
                 case .localArchive:
                     Button {
                         focusedField = nil
+                        importsContainer = false
                         showFileImporter = true
                     } label: {
                         LabeledContent("Archive") {
@@ -102,16 +104,24 @@ struct SetupView: View {
             }
 
             Section("Configuration") {
-                #if DEBUG || SIDELOAD
-                    JITRow()
-                #endif
-                Button {
-                    focusedField = nil
-                    showSoftware = true
-                } label: {
-                    LabeledContent("Software", value: softwareSummary)
+                if isInitialSetup {
+                    #if DEBUG || SIDELOAD
+                        JITRow()
+                    #endif
+                    Button {
+                        focusedField = nil
+                        showSoftware = true
+                    } label: {
+                        LabeledContent("Software", value: softwareSummary)
+                    }
+                    .foregroundStyle(.primary)
+                } else {
+                    NavigationLink {
+                        softwareView
+                    } label: {
+                        LabeledContent("Software", value: softwareSummary)
+                    }
                 }
-                .foregroundStyle(.primary)
             }
 
             Section("User") {
@@ -138,31 +148,51 @@ struct SetupView: View {
                 }
             }
 
-            Section {
-                Button {
-                    startInstall()
-                } label: {
-                    Text("Create")
-                        .frame(maxWidth: .infinity)
+            if isInitialSetup {
+                Section {
+                    Button {
+                        startInstall()
+                    } label: {
+                        Text("Create")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(!canInstall)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(!canInstall)
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
+                .listSectionSpacing(.compact)
+
+                Section {
+                    Button {
+                        focusedField = nil
+                        importsContainer = true
+                        showFileImporter = true
+                    } label: {
+                        Text("Import…")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
             }
         }
         .scrollDismissesKeyboard(.interactively)
         .modifier(FormColumnModifier())
-        .navigationTitle("Swipterm Setup")
+        .navigationTitle(isInitialSetup ? "Swipterm Setup" : "New Container")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !isInitialSetup {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        startInstall()
+                    }
+                    .disabled(!canInstall)
+                }
+            }
+        }
         .sheet(isPresented: $showSoftware) {
             NavigationStack {
-                SetupSoftwareView(
-                    software: $draft.software,
-                    ssh: $draft.ssh,
-                    shells: selectedDistribution?.shells(for: selectedRelease) ?? []
-                )
+                softwareView
             }
         }
         .fileImporter(
@@ -172,6 +202,10 @@ struct SetupView: View {
         ) { result in
             do {
                 guard let url = try result.get().first else { return }
+                if importsContainer {
+                    system.install(.importArchive(url))
+                    return
+                }
                 draft.customFileURL = url
                 applyAutoContainerName(Self.suggestedContainerName(fromArchive: url.lastPathComponent))
             } catch {
@@ -238,6 +272,18 @@ struct SetupView: View {
                 draft.software.shell = .bash
             }
         }
+    }
+
+    private var isInitialSetup: Bool {
+        system.containers.isEmpty
+    }
+
+    private var softwareView: SetupSoftwareView {
+        SetupSoftwareView(
+            software: $draft.software,
+            ssh: $draft.ssh,
+            shells: selectedDistribution?.shells(for: selectedRelease) ?? []
+        )
     }
 
     private var selectedDistribution: LinuxDistribution? {
@@ -319,7 +365,7 @@ struct SetupView: View {
 
     private func startInstall() {
         focusedField = nil
-        let installSource: LinuxSystem.InstallRequest.Source
+        let installSource: LinuxSystem.InstallRequest.Creation.Source
         switch draft.source {
         case .distribution:
             guard let release = selectedRelease else { return }
@@ -361,16 +407,16 @@ struct SetupView: View {
                 authorizedKeys: draft.ssh.authentication.allowsPublicKey ? draft.ssh.authorizedKeys : ""
             )
         }
-        system.install(LinuxSystem.InstallRequest(
+        system.install(.create(LinuxSystem.InstallRequest.Creation(
             source: installSource,
             containerName: Self.sanitizedContainerName(draft.containerName),
             user: draft.usesRootUser ? "root" : draft.username.isEmpty ? Self.fallbackUsername : draft.username,
             password: draft.password.isEmpty ? nil : draft.password,
             software: software
-        ))
+        )))
     }
 
-    private static var supportedArchiveTypes: [UTType] {
+    static var supportedArchiveTypes: [UTType] {
         var types: [UTType] = [.gzip, .bz2, .data]
         for ext in ["tar", "xz", "tgz", "txz", "tbz2"] {
             if let type = UTType(filenameExtension: ext) {

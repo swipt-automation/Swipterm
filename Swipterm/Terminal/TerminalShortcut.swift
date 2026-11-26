@@ -39,7 +39,7 @@ extension TerminalShortcut {
     static func suggestions() async -> [TerminalShortcut] {
         let system = LinuxSystem.shared
         guard let fileSystem = system.guestFileSystem,
-              let user = system.installedContainer?.defaultUser,
+              let user = system.activeContainer?.metadata.defaultUser,
               let passwd = try? await fileSystem.contents(of: "/etc/passwd"),
               let home = String(decoding: passwd, as: UTF8.self)
               .split(separator: "\n")

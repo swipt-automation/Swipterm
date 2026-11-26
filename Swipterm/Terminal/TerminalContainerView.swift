@@ -6,10 +6,10 @@ import UIKit
 struct TerminalContainerView: View {
     private let system = LinuxSystem.shared
     let sessionManager: TerminalSessionManager
+    @Binding var showSettings: Bool
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var splitState = TerminalSplitPresentationState()
-    @State private var showSettings = false
     @State private var pendingPaste: TerminalClipboardConfirmationRequest?
 
     var body: some View {
@@ -36,11 +36,6 @@ struct TerminalContainerView: View {
                     onFindNext: { sessionManager.activeSession?.search.navigate(.older) },
                     onFindPrevious: { sessionManager.activeSession?.search.navigate(.newer) }
                 )
-            }
-        }
-        .sheet(isPresented: $showSettings) {
-            NavigationStack {
-                SettingsView()
             }
         }
         .alert(

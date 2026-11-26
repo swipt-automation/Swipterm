@@ -17,6 +17,7 @@ private struct ContentView: View {
     private let system = LinuxSystem.shared
     @State private var sessionManager = TerminalSessionManager()
     @State private var setupDraft = SetupDraft()
+    @State private var showSettings = false
 
     #if SWIPTERM_STORE_SCREENSHOTS && targetEnvironment(simulator)
         @Environment(\.locale) private var screenshotLocale
@@ -41,7 +42,7 @@ private struct ContentView: View {
                 .id(screenshotLocale)
                 #endif
             case .booting, .running:
-                TerminalContainerView(sessionManager: sessionManager)
+                TerminalContainerView(sessionManager: sessionManager, showSettings: $showSettings)
             case .halted:
                 ContentUnavailableView {
                     Label("System Halted", systemImage: "power")
@@ -50,8 +51,8 @@ private struct ContentView: View {
                         system.restart()
                     }
                     .buttonStyle(.borderedProminent)
-                    Button("Reset", role: .destructive) {
-                        system.reset()
+                    Button("Settings") {
+                        showSettings = true
                     }
                 }
             case let .failed(message):
@@ -61,14 +62,12 @@ private struct ContentView: View {
                     Text(message)
                         .textSelection(.enabled)
                 } actions: {
-                    Button("Back to Setup") {
-                        system.reset()
+                    Button("Retry") {
+                        system.restart()
                     }
                     .buttonStyle(.borderedProminent)
-                    if system.installedContainer != nil {
-                        Button("Retry") {
-                            system.restart()
-                        }
+                    Button("Settings") {
+                        showSettings = true
                     }
                     Button("Copy Error") {
                         UIPasteboard.general.string = message
@@ -76,11 +75,21 @@ private struct ContentView: View {
                 }
             }
         }
-        .modifier(KeepScreenAwakeModifier(isRequired: system.state.keepsScreenAwake))
+        .sheet(isPresented: $showSettings) {
+            NavigationStack {
+                SettingsView()
+            }
+        }
+        .modifier(KeepScreenAwakeModifier(isRequired: system.state.keepsScreenAwake || system.exportProgress != nil))
         .modifier(OpenURLPromptModifier())
         .onChange(of: system.state) { _, state in
-            if state == .running {
+            switch state {
+            case .running:
                 setupDraft = SetupDraft()
+            case .setup, .provisioning:
+                showSettings = false
+            default:
+                break
             }
         }
         #if !SWIPTERM_STORE_SCREENSHOTS || !targetEnvironment(simulator)

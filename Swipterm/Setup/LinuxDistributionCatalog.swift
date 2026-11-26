@@ -135,6 +135,11 @@ nonisolated struct ContainerMetadata: Codable, Equatable, Sendable {
     }
 }
 
+nonisolated struct LinuxContainer: Identifiable, Equatable, Sendable {
+    let id: String
+    var metadata: ContainerMetadata
+}
+
 @Observable
 final class LinuxDistributionCatalogStore {
     enum LoadState: Equatable {
