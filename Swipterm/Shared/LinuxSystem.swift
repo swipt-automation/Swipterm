@@ -122,6 +122,7 @@ final class LinuxSystem {
     var onWillShutdown: (() -> Void)?
 
     private var runtime: LinuxRuntime?
+    private(set) var runtimeEngine: AppSettings.EngineConfiguration?
     @ObservationIgnored private var consoleChunks: [Data] = []
     @ObservationIgnored private var consoleListeners: [UUID: (Data) -> Void] = [:]
     @ObservationIgnored private var runningWaiters: [UUID: CheckedContinuation<Void, any Error>] = [:]
@@ -718,6 +719,7 @@ final class LinuxSystem {
         setupTerminal = nil
         let current = runtime
         runtime = nil
+        runtimeEngine = nil
         if let current {
             HostClipboard.shared.detach(from: current)
             HostPasteStaging.shared.detach(from: current)
@@ -767,10 +769,13 @@ final class LinuxSystem {
         let boot = bootCount
         let normalizer = ConsoleNewlineNormalizer()
         let metadata = container.metadata
+        let engine = AppSettings.shared.engineConfiguration
         let configuration = LinuxRuntime.Configuration(
             root: Self.rootURL(for: container.id),
             initMode: initMode,
             hostname: metadata.name,
+            memorySize: engine.memoryLimit,
+            cpuCount: engine.cpuLimit,
             consoleOutput: { data in
                 let chunk = normalizer.normalize(data)
                 guard !chunk.isEmpty else { return }
@@ -793,6 +798,7 @@ final class LinuxSystem {
             throw CancellationError()
         }
         runtime = bootedRuntime
+        runtimeEngine = engine
         runtimeBoot = boot
         if isSuspended {
             bootedRuntime.suspend()
@@ -1033,6 +1039,7 @@ final class LinuxSystem {
             await shutDownRuntime(halted)
             if runtime === halted {
                 runtime = nil
+                runtimeEngine = nil
             }
         }
     }

@@ -17,6 +17,8 @@ final class AppSettings {
         static let fontFollowTheme = "fontFollowTheme"
         static let fontFamily = "fontFamily"
         static let fontSize = "fontSize"
+        static let cpuLimit = "cpuLimit"
+        static let memoryLimit = "memoryLimit"
         static let caffeinateAvailable = "caffeinateAvailable"
         static let caffeinateEnabled = "caffeinateEnabled"
         static let shortcuts = "shortcuts"
@@ -50,6 +52,23 @@ final class AppSettings {
         didSet { saveTerminalAppearance(fontSize, for: Key.fontSize) }
     }
 
+    var cpuLimit: Int? {
+        didSet { store.set(cpuLimit, for: Key.cpuLimit) }
+    }
+
+    var memoryLimit: UInt64? {
+        didSet { store.set(memoryLimit, for: Key.memoryLimit) }
+    }
+
+    struct EngineConfiguration: Equatable {
+        var cpuLimit: Int?
+        var memoryLimit: UInt64?
+    }
+
+    var engineConfiguration: EngineConfiguration {
+        EngineConfiguration(cpuLimit: cpuLimit, memoryLimit: memoryLimit)
+    }
+
     var isCaffeinateAvailable: Bool {
         didSet { store.set(isCaffeinateAvailable, for: Key.caffeinateAvailable) }
     }
@@ -72,6 +91,8 @@ final class AppSettings {
         fontFollowTheme = store.value(Bool.self, for: Key.fontFollowTheme) ?? true
         fontFamily = store.value(String.self, for: Key.fontFamily) ?? ""
         fontSize = store.value(Double.self, for: Key.fontSize) ?? 10
+        cpuLimit = store.value(Int?.self, for: Key.cpuLimit) ?? nil
+        memoryLimit = store.value(UInt64?.self, for: Key.memoryLimit) ?? nil
         isCaffeinateAvailable = store.value(Bool.self, for: Key.caffeinateAvailable) ?? false
         isCaffeinateEnabled = store.value(Bool.self, for: Key.caffeinateEnabled) ?? false
         shortcuts = store.value([TerminalShortcut].self, for: Key.shortcuts) ?? []

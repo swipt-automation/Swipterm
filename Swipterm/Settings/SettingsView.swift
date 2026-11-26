@@ -2,8 +2,14 @@ import SwiftUI
 import UIKit
 
 struct SettingsView: View {
+    // SwiptermKit refuses to boot a machine with more than 8 vCPUs.
+    private static let cpuLimits = Array(1 ... min(ProcessInfo.processInfo.activeProcessorCount, 8))
+    private static let memoryLimits = ([512, 1024, 2048, 3072, 4096, 6144, 8192, 12288, 16384] as [UInt64])
+        .map { $0 << 20 }
+        .filter { $0 < ProcessInfo.processInfo.physicalMemory }
+
     private let system = LinuxSystem.shared
-    private let settings = AppSettings.shared
+    @Bindable private var settings = AppSettings.shared
     @Bindable private var location = HostLocation.shared
 
     @Environment(\.dismiss) private var dismiss
@@ -14,6 +20,22 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
+                Picker("CPU Limit", selection: $settings.cpuLimit) {
+                    Text("No Limit")
+                        .tag(Int?.none)
+                    ForEach(Self.cpuLimits, id: \.self) { count in
+                        Text(count, format: .number)
+                            .tag(Int?.some(count))
+                    }
+                }
+                Picker("Memory Limit", selection: $settings.memoryLimit) {
+                    Text("No Limit")
+                        .tag(UInt64?.none)
+                    ForEach(Self.memoryLimits, id: \.self) { size in
+                        Text(Int64(size), format: .byteCount(style: .memory))
+                            .tag(UInt64?.some(size))
+                    }
+                }
                 #if DEBUG || SIDELOAD
                     JITRow()
                 #endif
@@ -24,6 +46,12 @@ struct SettingsView: View {
                         caffeinateToggle
                     }
                 #endif
+                if let runtimeEngine = system.runtimeEngine, runtimeEngine != settings.engineConfiguration {
+                    Button("Restart to Apply") {
+                        dismiss()
+                        system.restart()
+                    }
+                }
             } header: {
                 Text("Engine")
             }
