@@ -10,11 +10,12 @@ final class LinuxSystem {
         case setup
         case booting
         case running
+        case shuttingDown
         case halted
         case failed(BootFailure)
 
         var runsGuest: Bool {
-            self == .booting || self == .running
+            self == .booting || self == .running || self == .shuttingDown
         }
     }
 
@@ -54,6 +55,7 @@ final class LinuxSystem {
     @ObservationIgnored private var bootHaltWaiter: (boot: UInt64, continuation: CheckedContinuation<Void, Never>)?
     @ObservationIgnored private var bootCount: UInt64 = 0
     @ObservationIgnored private var runtimeBoot: UInt64 = 0
+    @ObservationIgnored private var consoleBoot: UInt64 = 0
     private var bootstrapped = false
     private var generation: UInt64 = 0
     private var activeTask: Task<Void, Never>?
@@ -133,19 +135,33 @@ final class LinuxSystem {
     func restart(kernel: LinuxRuntime.Configuration.Kernel = .installed) {
         let generation = beginOperation()
         console = ConsoleBuffer()
-        let previousRuntime = detachRuntimeForShutdown()
+        tearDownInBackground(detachRuntimeForShutdown())
         guard let container = store.activeContainer else {
-            tearDownInBackground(previousRuntime)
             state = .setup
             return
         }
         state = .booting
         activeTask = Task {
-            if let previousRuntime {
-                await shutDownRuntime(previousRuntime)
-            }
-            guard self.generation == generation else { return }
             await bootInstalledRoot(container, kernel: kernel, generation: generation)
+        }
+    }
+
+    func shutDown() {
+        guard state != .shuttingDown else { return }
+        _ = beginOperation()
+        console = ConsoleBuffer()
+        consoleBoot = runtimeBoot
+        state = .shuttingDown
+        let target = detachRuntimeForShutdown()
+        let previousTeardown = pendingTeardown
+        activeTask = Task {
+            await previousTeardown?.value
+            if let target {
+                await shutDownRuntime(target)
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            console.close()
+            exit(0)
         }
     }
 
@@ -171,6 +187,8 @@ final class LinuxSystem {
             console = ConsoleBuffer()
             state = .halted
             await shutDownDetachedRuntime()
+        } else {
+            await pendingTeardown?.value
         }
         defer {
             if restarts {
@@ -267,7 +285,7 @@ final class LinuxSystem {
 
     private var awaitsRunning: Bool {
         switch state {
-        case .booting, .failed:
+        case .booting, .shuttingDown, .failed:
             true
         default:
             false
@@ -379,10 +397,10 @@ final class LinuxSystem {
         }
         bootCount &+= 1
         let boot = bootCount
+        consoleBoot = boot
         let normalizer = ConsoleNewlineNormalizer()
         let metadata = container.metadata
         let gpuMode = settings.gpuMode
-        let console = console
         let commands = HostCommands(system: self, store: store, settings: settings, location: location, catalog: catalog)
         let clipboard = clipboard
         let pasteStaging = pasteStaging
@@ -395,7 +413,9 @@ final class LinuxSystem {
                 let chunk = normalizer.normalize(data)
                 guard !chunk.isEmpty else { return }
                 Task { @MainActor in
-                    console.append(chunk)
+                    if self.consoleBoot == boot {
+                        self.console.append(chunk)
+                    }
                 }
             },
             haltHandler: { reason in
@@ -544,7 +564,7 @@ final class LinuxSystem {
     }
 
     private func runtimeDidHalt(_ reason: LinuxRuntime.HaltReason, generation: UInt64, boot: UInt64) {
-        guard self.generation == generation, let runtime, runtimeBoot == boot else { return }
+        guard self.generation == generation, runtime != nil, runtimeBoot == boot else { return }
         if state == .booting, awaitingBootReadiness {
             bootHalt = reason
             resumeBootHaltWaiter(boot)
@@ -554,24 +574,7 @@ final class LinuxSystem {
         case .reboot:
             restart()
         case .powerOff, .exited:
-            _ = beginOperation()
-            state = .halted
-            console = ConsoleBuffer()
-            activeTask = shutDownHaltedRuntime(runtime)
-        }
-    }
-
-    private func shutDownHaltedRuntime(_ halted: LinuxRuntime) -> Task<Void, Never> {
-        onWillShutdown?()
-        store.runtimeDidStop()
-        clipboard.detach(from: halted)
-        pasteStaging.detach(from: halted)
-        return Task {
-            await shutDownRuntime(halted)
-            if runtime === halted {
-                runtime = nil
-                runtimeGPUMode = nil
-            }
+            shutDown()
         }
     }
 

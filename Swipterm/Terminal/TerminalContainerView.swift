@@ -87,10 +87,15 @@ struct TerminalContainerView: View {
         .onChange(of: showSettings, initial: true) { _, isPresented in
             splitState.isSettingsPresented = isPresented
         }
+        .onChange(of: isRunning) { _, isRunning in
+            if !isRunning {
+                splitState.isShortcutsPresented = false
+            }
+        }
         .onChange(of: sessionManager.sessions.isEmpty) { _, isEmpty in
             guard isEmpty else { return }
             switch sessionManager.services.system.state {
-            case .booting, .running, .failed:
+            case .booting, .running, .shuttingDown, .failed:
                 sessionManager.ensureInitialSession()
             default:
                 break

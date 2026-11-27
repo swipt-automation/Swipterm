@@ -93,6 +93,9 @@ struct TerminalSessionContentView: View {
         if session.services.system.state == .booting {
             return "Starting Linux…"
         }
+        if session.services.system.state == .shuttingDown {
+            return "Shutting Down…"
+        }
         return nil
     }
 

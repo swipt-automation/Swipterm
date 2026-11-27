@@ -1,10 +1,17 @@
 import SwiftUI
+import UIKit
 
 struct TerminalSidebarView: View {
+    private static let buttonSize: CGFloat = 44
+    private static let edgeMargin: CGFloat = 16
+
     let sessionManager: TerminalSessionManager
     let onSelectSession: () -> Void
     let onOpenSettings: () -> Void
     let onManageShortcuts: () -> Void
+
+    @State private var leadingCornerRadius: CGFloat = 0
+    @State private var trailingCornerRadius: CGFloat = 0
 
     var body: some View {
         ScrollView {
@@ -24,20 +31,9 @@ struct TerminalSidebarView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            Button(action: onOpenSettings) {
-                Image(systemName: "gearshape")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
-                    .modifier(SettingsButtonChromeModifier())
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text("Settings"))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+        .contentMargins(.bottom, Self.buttonSize + Self.edgeMargin, for: .scrollContent)
+        .overlay {
+            bottomButtons
         }
         .navigationTitle(Text(verbatim: "Swipterm"))
         .navigationBarTitleDisplayMode(.inline)
@@ -57,6 +53,42 @@ struct TerminalSidebarView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var bottomButtons: some View {
+        let buttons = HStack {
+            SidebarButton(symbol: "gearshape", label: "Settings", size: Self.buttonSize, action: onOpenSettings)
+            Spacer()
+            SidebarButton(symbol: "power", label: "Shut Down", size: Self.buttonSize, action: sessionManager.services.system.shutDown)
+        }
+        if #available(iOS 26.0, *) {
+            let leadingInset = Self.cornerInset(radius: leadingCornerRadius)
+            let trailingInset = Self.cornerInset(radius: trailingCornerRadius)
+            buttons
+                .padding(.leading, leadingInset)
+                .padding(.trailing, trailingInset)
+                .padding(.bottom, max(leadingInset, trailingInset))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .background {
+                    SidebarCornerReader { leading, trailing in
+                        leadingCornerRadius = leading
+                        trailingCornerRadius = trailing
+                    }
+                }
+                .ignoresSafeArea(.container, edges: .bottom)
+        } else {
+            buttons
+                .padding(.horizontal, Self.edgeMargin)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        }
+    }
+
+    private static func cornerInset(radius: CGFloat) -> CGFloat {
+        let buttonRadius = buttonSize / 2
+        let excess = max(0, radius - buttonRadius - edgeMargin)
+        return edgeMargin + excess * (1 - 0.5.squareRoot())
     }
 }
 
@@ -86,14 +118,74 @@ struct NewSessionMenuItems: View {
     }
 }
 
-private struct SettingsButtonChromeModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content
-                .glassEffect(.regular.interactive(), in: Circle())
-        } else {
-            content
-                .background(.regularMaterial, in: Circle())
+private struct SidebarButton: View {
+    let symbol: String
+    let label: LocalizedStringKey
+    let size: CGFloat
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            let icon = Image(systemName: symbol)
+                .font(.body.weight(.medium))
+                .foregroundStyle(.primary)
+                .frame(width: size, height: size)
+            if #available(iOS 26.0, *) {
+                icon
+                    .glassEffect(.regular.interactive(), in: Circle())
+                    .contentShape(Circle())
+            } else {
+                icon
+                    .background(.regularMaterial, in: Circle())
+                    .contentShape(Circle())
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+}
+
+@available(iOS 26.0, *)
+private struct SidebarCornerReader: UIViewRepresentable {
+    let onChange: (CGFloat, CGFloat) -> Void
+
+    func makeUIView(context _: Context) -> View {
+        View(onChange: onChange)
+    }
+
+    func updateUIView(_ view: View, context _: Context) {
+        view.onChange = onChange
+    }
+
+    final class View: UIView {
+        var onChange: (CGFloat, CGFloat) -> Void
+        private var lastLeading: CGFloat = -1
+        private var lastTrailing: CGFloat = -1
+
+        init(onChange: @escaping (CGFloat, CGFloat) -> Void) {
+            self.onChange = onChange
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+            cornerConfiguration = .corners(radius: .containerConcentric())
+        }
+
+        @available(*, unavailable)
+        required init?(coder _: NSCoder) {
+            fatalError()
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            let isRTL = effectiveUserInterfaceLayoutDirection == .rightToLeft
+            let leading = effectiveRadius(corner: isRTL ? .bottomRight : .bottomLeft)
+            let trailing = effectiveRadius(corner: isRTL ? .bottomLeft : .bottomRight)
+            guard leading != lastLeading || trailing != lastTrailing else { return }
+            lastLeading = leading
+            lastTrailing = trailing
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                onChange(lastLeading, lastTrailing)
+            }
         }
     }
 }

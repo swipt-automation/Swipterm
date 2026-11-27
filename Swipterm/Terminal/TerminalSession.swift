@@ -114,7 +114,7 @@ final class TerminalSession: Identifiable {
         do {
             if system.state != .running {
                 var showedBootConsole = false
-                if number == 1, system.state == .booting {
+                if number == 1, system.state == .booting || system.state == .shuttingDown {
                     consoleSubscription = console.subscribe { [weak self] data in
                         guard !data.isEmpty else { return }
                         showedBootConsole = true

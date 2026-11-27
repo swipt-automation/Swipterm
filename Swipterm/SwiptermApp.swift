@@ -62,27 +62,15 @@ private struct ContentView: View {
                 #if SWIPTERM_STORE_SCREENSHOTS && targetEnvironment(simulator)
                 .id(screenshotLocale)
                 #endif
-            case .booting, .running, .failed:
+            case .booting, .running, .shuttingDown, .halted, .failed:
                 TerminalContainerView(sessionManager: sessionManager, showSettings: $showSettings)
-            case .halted:
-                ContentUnavailableView {
-                    Label("System Halted", systemImage: "power")
-                } actions: {
-                    Button("Restart") {
-                        system.restart()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    Button("Settings") {
-                        showSettings = true
-                    }
-                }
             }
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
         .modifier(KeepScreenAwakeModifier(
-            isRequired: containers.creations.contains { $0.state == .running } || !containers.exportProgress.isEmpty
+            isRequired: system.state == .shuttingDown || containers.creations.contains { $0.state == .running } || !containers.exportProgress.isEmpty
         ))
         .modifier(OpenURLPromptModifier())
         .modifier(BootFailurePromptModifier())
@@ -90,7 +78,7 @@ private struct ContentView: View {
             switch state {
             case .running:
                 setupDraft = SetupDraft()
-            case .setup, .failed:
+            case .setup, .shuttingDown, .failed:
                 showSettings = false
             default:
                 break
