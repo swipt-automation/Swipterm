@@ -32,12 +32,18 @@ struct ContainerLabel: View {
     let container: LinuxContainer
 
     var body: some View {
-        Label {
+        HStack(spacing: 8) {
             Text(verbatim: container.metadata.name)
-        } icon: {
-            Image(systemName: "checkmark")
-                .foregroundStyle(.tint)
-                .opacity(container.id == LinuxSystem.shared.activeContainerID ? 1 : 0)
+                .lineLimit(1)
+            if container.id == LinuxSystem.shared.activeContainerID {
+                Text("Active")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.tint)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(.tint.opacity(0.15), in: Capsule())
+                    .fixedSize()
+            }
         }
     }
 }
