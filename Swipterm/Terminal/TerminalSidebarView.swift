@@ -138,6 +138,7 @@ private struct SidebarButton: View {
         Button(action: action) {
             let icon = Image(systemName: symbol)
                 .font(.body.weight(.medium))
+                .imageScale(.large)
                 .foregroundStyle(.primary)
                 .frame(width: size, height: size)
             if #available(iOS 26.0, *) {
