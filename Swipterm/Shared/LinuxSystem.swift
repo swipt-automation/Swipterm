@@ -182,20 +182,23 @@ final class LinuxSystem {
 
     func export(_ container: LinuxContainer) async throws -> URL {
         let restarts = container.id == store.activeContainerID && state == .running
-        if restarts {
-            _ = beginOperation()
-            console = ConsoleBuffer()
-            state = .halted
-            await shutDownDetachedRuntime()
-        } else {
-            await pendingTeardown?.value
-        }
+        var shutDown = false
         defer {
-            if restarts {
+            if shutDown {
                 restart()
             }
         }
-        return try await store.export(container)
+        return try await store.export(container) {
+            if restarts {
+                shutDown = true
+                _ = beginOperation()
+                console = ConsoleBuffer()
+                state = .halted
+                await shutDownDetachedRuntime()
+            } else {
+                await pendingTeardown?.value
+            }
+        }
     }
 
     func runningRuntime() async -> LinuxRuntime? {

@@ -14,6 +14,8 @@ struct ContainerView: View {
     @State private var exportedArchiveURL: URL?
     @State private var isSavingArchive = false
     @State private var failure: Failure?
+    @State private var isPresentingFailure = false
+    @State private var isPresentingExportAlert = false
 
     private struct Failure {
         let title: LocalizedStringKey
@@ -35,19 +37,21 @@ struct ContainerView: View {
                         Text(dataSize.formatted(.byteCount(style: .file)))
                     }
                 }
-                if let occupancy {
+                switch occupancy {
+                case let .mounted(path, readOnly):
                     LabeledContent("Status") {
-                        switch occupancy {
-                        case let .mounted(path, readOnly):
-                            if readOnly {
-                                Text("Mounted Read-Only at \(Text(verbatim: path))")
-                            } else {
-                                Text("Mounted at \(Text(verbatim: path))")
-                            }
-                        case .entered, .exporting:
-                            ContainerOccupancyText(occupancy: occupancy)
+                        if readOnly {
+                            Text("Mounted Read-Only at \(Text(verbatim: path))")
+                        } else {
+                            Text("Mounted at \(Text(verbatim: path))")
                         }
                     }
+                case .entered:
+                    LabeledContent("Status") {
+                        ContainerOccupancyText(occupancy: occupancy)
+                    }
+                case .exporting, nil:
+                    EmptyView()
                 }
             }
             Section("Actions") {
@@ -73,6 +77,7 @@ struct ContainerView: View {
                             dismiss()
                         } catch {
                             failure = Failure(title: "Couldn’t Delete Container", message: error.localizedDescription)
+                            isPresentingFailure = true
                         }
                     }
                 }
@@ -96,24 +101,27 @@ struct ContainerView: View {
             ExportProgressAlert(containerName: container.metadata.name, progress: store.exportProgress[container.id]) {
                 exportTask?.cancel()
             } onDismiss: {
+                isPresentingExportAlert = false
                 isSavingArchive = exportedArchiveURL != nil
+                isPresentingFailure = failure != nil
             }
         }
+        .onChange(of: store.exportProgress[container.id] != nil) { _, active in
+            if active {
+                isPresentingExportAlert = true
+            }
+        }
+        .interactiveDismissDisabled(store.exportProgress[container.id] != nil || isPresentingExportAlert)
         .fileMover(isPresented: $isSavingArchive, file: exportedArchiveURL) { result in
             if case let .failure(error) = result {
                 try! FileManager.default.removeItem(at: exportedArchiveURL!)
                 failure = Failure(title: "Couldn’t Export Container", message: error.localizedDescription)
+                isPresentingFailure = true
             }
         } onCancellation: {
             try! FileManager.default.removeItem(at: exportedArchiveURL!)
         }
-        .alert(failure?.title ?? "", isPresented: Binding {
-            failure != nil && store.exportProgress[container.id] == nil
-        } set: { presented in
-            if !presented {
-                failure = nil
-            }
-        }, presenting: failure) { _ in
+        .alert(failure?.title ?? "", isPresented: $isPresentingFailure, presenting: failure) { _ in
         } message: { failure in
             Text(failure.message)
         }
@@ -125,12 +133,16 @@ struct ContainerView: View {
     private func export() {
         exportedArchiveURL = nil
         failure = nil
+        isPresentingFailure = false
         exportTask = Task {
             do {
                 exportedArchiveURL = try await system.export(container)
             } catch is CancellationError {
             } catch {
                 failure = Failure(title: "Couldn’t Export Container", message: error.localizedDescription)
+                if !isPresentingExportAlert {
+                    isPresentingFailure = true
+                }
             }
         }
     }
@@ -144,6 +156,80 @@ private struct ExportProgressAlert: UIViewControllerRepresentable {
 
     final class Coordinator {
         var alert: ProgressAlert?
+        var didPresent = false
+        var isPresenting = false
+        var pendingDismiss = false
+        var retryWorkItem: DispatchWorkItem?
+        var onDismiss: () -> Void = {}
+
+        func presentIfNeeded(from controller: UIViewController) {
+            guard let alert, !didPresent, !isPresenting, !pendingDismiss else {
+                return
+            }
+            var host = controller
+            while let parent = host.parent {
+                host = parent
+            }
+            guard host.viewIfLoaded?.window != nil else {
+                scheduleRetry(from: controller)
+                return
+            }
+            if let presented = host.presentedViewController {
+                if let transition = presented.transitionCoordinator {
+                    transition.animate(alongsideTransition: nil) { [weak self, weak controller] _ in
+                        guard let self, let controller else { return }
+                        presentIfNeeded(from: controller)
+                    }
+                } else {
+                    scheduleRetry(from: controller)
+                }
+                return
+            }
+            retryWorkItem?.cancel()
+            retryWorkItem = nil
+            didPresent = true
+            isPresenting = true
+            host.present(alert.controller, animated: true) { [weak self] in
+                guard let self else { return }
+                isPresenting = false
+                if pendingDismiss {
+                    finishDismiss()
+                }
+            }
+        }
+
+        func dismiss() {
+            retryWorkItem?.cancel()
+            retryWorkItem = nil
+            guard alert != nil else { return }
+            if isPresenting {
+                pendingDismiss = true
+                return
+            }
+            finishDismiss()
+        }
+
+        private func finishDismiss() {
+            pendingDismiss = false
+            didPresent = false
+            guard let alert else { return }
+            self.alert = nil
+            if alert.controller.presentingViewController != nil {
+                alert.controller.dismiss(animated: true, completion: onDismiss)
+            } else {
+                onDismiss()
+            }
+        }
+
+        private func scheduleRetry(from controller: UIViewController) {
+            retryWorkItem?.cancel()
+            let item = DispatchWorkItem { [weak self, weak controller] in
+                guard let self, let controller else { return }
+                presentIfNeeded(from: controller)
+            }
+            retryWorkItem = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(50), execute: item)
+        }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -155,20 +241,22 @@ private struct ExportProgressAlert: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ controller: UIViewController, context: Context) {
+        let coordinator = context.coordinator
+        coordinator.onDismiss = onDismiss
         guard let progress else {
-            if let alert = context.coordinator.alert {
-                context.coordinator.alert = nil
-                alert.controller.dismiss(animated: true, completion: onDismiss)
-            }
+            coordinator.dismiss()
             return
         }
-        if let alert = context.coordinator.alert {
+        if let alert = coordinator.alert {
             alert.update(progress)
+            coordinator.presentIfNeeded(from: controller)
         } else {
             let alert = ProgressAlert(title: String(localized: "Exporting \(containerName)…"), onCancel: onCancel)
             alert.update(progress)
-            context.coordinator.alert = alert
-            controller.present(alert.controller, animated: true)
+            coordinator.alert = alert
+            coordinator.didPresent = false
+            coordinator.pendingDismiss = false
+            coordinator.presentIfNeeded(from: controller)
         }
     }
 }

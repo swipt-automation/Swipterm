@@ -194,7 +194,7 @@ final class ContainerStore {
         emptyTrash()
     }
 
-    func export(_ container: LinuxContainer) async throws -> URL {
+    func export(_ container: LinuxContainer, prepare: () async throws -> Void = {}) async throws -> URL {
         guard occupancy(of: container.id) == nil else {
             throw ContainerError.busy(container.metadata.name)
         }
@@ -202,6 +202,8 @@ final class ContainerStore {
         defer {
             exportProgress[container.id] = nil
         }
+        try await prepare()
+        try Task.checkCancellation()
         try FileManager.default.createDirectory(at: Self.exportDirectoryURL, withIntermediateDirectories: true)
         let archiveURL = Self.exportDirectoryURL.appending(path: "\(container.metadata.name).tar.gz")
         let id = container.id

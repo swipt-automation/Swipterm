@@ -6,6 +6,7 @@ struct SettingsView: View {
     private static let gpuModes: [GPUMode] = [.automatic] + LinuxRuntime.availableGPUBackends.map(GPUMode.init) + [.disabled]
 
     @Environment(LinuxSystem.self) private var system
+    @Environment(ContainerStore.self) private var store
     @Environment(AppSettings.self) private var settings
     @Environment(HostLocation.self) private var location
     @Environment(\.dismiss) private var dismiss
@@ -89,6 +90,7 @@ struct SettingsView: View {
             location.isSettingsVisible = false
             location.isPresentingDeniedAlert = false
         }
+        .interactiveDismissDisabled(!store.exportProgress.isEmpty)
     }
 
     private var caffeinateToggle: some View {

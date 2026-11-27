@@ -90,9 +90,7 @@ struct ContainerOccupancyText: View {
             Text("Mounted")
         case .entered:
             Text("In Use")
-        case .exporting:
-            Text("Exporting…")
-        case nil:
+        case .exporting, nil:
             EmptyView()
         }
     }
