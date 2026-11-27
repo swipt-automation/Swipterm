@@ -154,39 +154,35 @@ private struct ExportProgressAlert: UIViewControllerRepresentable {
     let onCancel: () -> Void
     let onDismiss: () -> Void
 
-    final class Coordinator {
+    final class Presenter: UIViewController {
         var alert: ProgressAlert?
         var didPresent = false
         var isPresenting = false
         var pendingDismiss = false
-        var retryWorkItem: DispatchWorkItem?
         var onDismiss: () -> Void = {}
 
-        func presentIfNeeded(from controller: UIViewController) {
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            presentAlertIfNeeded()
+        }
+
+        func presentAlertIfNeeded() {
             guard let alert, !didPresent, !isPresenting, !pendingDismiss else {
                 return
             }
-            var host = controller
+            var host: UIViewController = self
             while let parent = host.parent {
                 host = parent
             }
             guard host.viewIfLoaded?.window != nil else {
-                scheduleRetry(from: controller)
                 return
             }
             if let presented = host.presentedViewController {
-                if let transition = presented.transitionCoordinator {
-                    transition.animate(alongsideTransition: nil) { [weak self, weak controller] _ in
-                        guard let self, let controller else { return }
-                        presentIfNeeded(from: controller)
-                    }
-                } else {
-                    scheduleRetry(from: controller)
+                presented.transitionCoordinator?.animate(alongsideTransition: nil) { [weak self] _ in
+                    self?.presentAlertIfNeeded()
                 }
                 return
             }
-            retryWorkItem?.cancel()
-            retryWorkItem = nil
             didPresent = true
             isPresenting = true
             host.present(alert.controller, animated: true) { [weak self] in
@@ -198,9 +194,7 @@ private struct ExportProgressAlert: UIViewControllerRepresentable {
             }
         }
 
-        func dismiss() {
-            retryWorkItem?.cancel()
-            retryWorkItem = nil
+        func dismissAlert() {
             guard alert != nil else { return }
             if isPresenting {
                 pendingDismiss = true
@@ -220,43 +214,27 @@ private struct ExportProgressAlert: UIViewControllerRepresentable {
                 onDismiss()
             }
         }
-
-        private func scheduleRetry(from controller: UIViewController) {
-            retryWorkItem?.cancel()
-            let item = DispatchWorkItem { [weak self, weak controller] in
-                guard let self, let controller else { return }
-                presentIfNeeded(from: controller)
-            }
-            retryWorkItem = item
-            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(50), execute: item)
-        }
     }
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
+    func makeUIViewController(context _: Context) -> Presenter {
+        Presenter()
     }
 
-    func makeUIViewController(context _: Context) -> UIViewController {
-        UIViewController()
-    }
-
-    func updateUIViewController(_ controller: UIViewController, context: Context) {
-        let coordinator = context.coordinator
-        coordinator.onDismiss = onDismiss
+    func updateUIViewController(_ presenter: Presenter, context _: Context) {
+        presenter.onDismiss = onDismiss
         guard let progress else {
-            coordinator.dismiss()
+            presenter.dismissAlert()
             return
         }
-        if let alert = coordinator.alert {
+        if let alert = presenter.alert {
             alert.update(progress)
-            coordinator.presentIfNeeded(from: controller)
         } else {
             let alert = ProgressAlert(title: String(localized: "Exporting \(containerName)…"), onCancel: onCancel)
             alert.update(progress)
-            coordinator.alert = alert
-            coordinator.didPresent = false
-            coordinator.pendingDismiss = false
-            coordinator.presentIfNeeded(from: controller)
+            presenter.alert = alert
+            presenter.didPresent = false
+            presenter.pendingDismiss = false
         }
+        presenter.presentAlertIfNeeded()
     }
 }

@@ -46,7 +46,7 @@ final class TerminalSession: Identifiable {
         self.number = number
         self.shortcut = shortcut
         self.services = services
-        let relay = TerminalRelay()
+        let relay = TerminalRelay(startupInput: shortcut?.startupInput)
         self.relay = relay
         session = InMemoryTerminalSession(
             write: { data in
@@ -102,7 +102,6 @@ final class TerminalSession: Identifiable {
         let session = session
         let relay = relay
         let firstPtyOutput = OnceFlag()
-        let startupInput = shortcut?.startupInput
         let system = services.system
         let console = system.console
         var consoleSubscription: UUID?
@@ -160,14 +159,6 @@ final class TerminalSession: Identifiable {
                     }
                     session.receive(data)
                     if firstPtyOutput.claim() {
-                        if let startupInput {
-                            Task.detached {
-                                while relay.outputQuietDuration < 0.3 {
-                                    try? await Task.sleep(for: .milliseconds(50))
-                                }
-                                relay.sendInput(startupInput)
-                            }
-                        }
                         Task { @MainActor [weak self] in
                             self?.hasVisibleOutput = true
                         }
@@ -306,11 +297,14 @@ private final nonisolated class TerminalRelay: @unchecked Sendable {
     private var lastInputUptime: TimeInterval = 0
     private var outputCountAtInputBurst: UInt64 = 0
     private var wasQuietAtInputBurst = true
+    private var startupInput: Data?
+    private var startupInputTimer: DispatchSourceTimer?
 
     let inputStream: AsyncStream<Data>
     private let inputContinuation: AsyncStream<Data>.Continuation
 
-    init() {
+    init(startupInput: Data?) {
+        self.startupInput = startupInput
         let (stream, continuation) = AsyncStream.makeStream(of: Data.self)
         inputStream = stream
         inputContinuation = continuation
@@ -322,11 +316,6 @@ private final nonisolated class TerminalRelay: @unchecked Sendable {
 
     var isAborted: Bool {
         lock.withLock { aborted }
-    }
-
-    var outputQuietDuration: TimeInterval {
-        let now = ProcessInfo.processInfo.systemUptime
-        return lock.withLock { now - lastOutputUptime }
     }
 
     func sendInput(_ data: Data) {
@@ -349,6 +338,33 @@ private final nonisolated class TerminalRelay: @unchecked Sendable {
         lock.withLock {
             outputCount &+= 1
             lastOutputUptime = now
+            guard startupInput != nil, startupInputTimer == nil else { return }
+            let timer = DispatchSource.makeTimerSource()
+            timer.schedule(deadline: .now() + .milliseconds(300))
+            timer.setEventHandler { [weak self] in
+                self?.sendStartupInput()
+            }
+            timer.activate()
+            startupInputTimer = timer
+        }
+    }
+
+    private func sendStartupInput() {
+        let now = ProcessInfo.processInfo.systemUptime
+        let (input, timer): (Data?, DispatchSourceTimer?) = lock.withLock {
+            guard let startupInput, let startupInputTimer else { return (nil, nil) }
+            let remaining = 0.3 - (now - lastOutputUptime)
+            if remaining > 0 {
+                startupInputTimer.schedule(deadline: .now() + .nanoseconds(Int((remaining * 1_000_000_000).rounded(.up))))
+                return (nil, nil)
+            }
+            self.startupInput = nil
+            self.startupInputTimer = nil
+            return (startupInput, startupInputTimer)
+        }
+        timer?.cancel()
+        if let input {
+            sendInput(input)
         }
     }
 
@@ -426,16 +442,19 @@ private final nonisolated class TerminalRelay: @unchecked Sendable {
 
     func abort() -> LinuxTerminal? {
         inputContinuation.finish()
-        let (terminal, waiter) = lock.withLock {
+        let (terminal, waiter, timer) = lock.withLock {
             aborted = true
             backlogged = false
             defer {
                 currentTerminal = nil
                 backlogWaiter = nil
+                startupInput = nil
+                startupInputTimer = nil
             }
-            return (currentTerminal, backlogWaiter)
+            return (currentTerminal, backlogWaiter, startupInputTimer)
         }
         waiter?.resume()
+        timer?.cancel()
         return terminal
     }
 }
