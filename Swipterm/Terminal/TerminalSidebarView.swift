@@ -1,16 +1,23 @@
+import Observation
 import SwiftUI
 import UIKit
+
+@Observable
+final class SidebarCornerMetrics {
+    var windowLeadingRadius: CGFloat = 0
+}
 
 struct TerminalSidebarView: View {
     private static let buttonSize: CGFloat = 44
     private static let edgeMargin: CGFloat = 16
 
     let sessionManager: TerminalSessionManager
+    let cornerMetrics: SidebarCornerMetrics
     let onSelectSession: () -> Void
     let onOpenSettings: () -> Void
     let onManageShortcuts: () -> Void
 
-    @State private var leadingCornerRadius: CGFloat = 0
+    @State private var leadingCornerRadius: CGFloat?
     @State private var trailingCornerRadius: CGFloat = 0
 
     var body: some View {
@@ -57,31 +64,34 @@ struct TerminalSidebarView: View {
 
     @ViewBuilder
     private var bottomButtons: some View {
-        let buttons = HStack {
-            SidebarButton(symbol: "gearshape", label: "Settings", size: Self.buttonSize, action: onOpenSettings)
-            Spacer()
+        let buttons = HStack(spacing: 12) {
             SidebarButton(symbol: "power", label: "Shut Down", size: Self.buttonSize, action: sessionManager.services.system.shutDown)
+            SidebarButton(symbol: "gearshape", label: "Settings", size: Self.buttonSize, action: onOpenSettings)
         }
         if #available(iOS 26.0, *) {
-            let leadingInset = Self.cornerInset(radius: leadingCornerRadius)
+            let leadingInset = Self.cornerInset(radius: leadingCornerRadius ?? cornerMetrics.windowLeadingRadius)
             let trailingInset = Self.cornerInset(radius: trailingCornerRadius)
             buttons
                 .padding(.leading, leadingInset)
                 .padding(.trailing, trailingInset)
                 .padding(.bottom, max(leadingInset, trailingInset))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .background {
                     SidebarCornerReader { leading, trailing in
                         leadingCornerRadius = leading
                         trailingCornerRadius = trailing
                     }
                 }
-                .ignoresSafeArea(.container, edges: .bottom)
+                .ignoresSafeArea(edges: .bottom)
+                .onChange(of: cornerMetrics.windowLeadingRadius) { _, _ in
+                    leadingCornerRadius = nil
+                }
         } else {
             buttons
                 .padding(.horizontal, Self.edgeMargin)
                 .padding(.vertical, 12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .ignoresSafeArea(.keyboard, edges: .bottom)
         }
     }
 
@@ -176,7 +186,13 @@ private struct SidebarCornerReader: UIViewRepresentable {
 
         override func layoutSubviews() {
             super.layoutSubviews()
+            guard !bounds.isEmpty, let window else { return }
             let isRTL = effectiveUserInterfaceLayoutDirection == .rightToLeft
+            let frameInWindow = convert(bounds, to: window)
+            let isOffscreen = isRTL
+                ? frameInWindow.maxX > window.bounds.maxX + 1
+                : frameInWindow.minX < window.bounds.minX - 1
+            guard !isOffscreen else { return }
             let leading = effectiveRadius(corner: isRTL ? .bottomRight : .bottomLeft)
             let trailing = effectiveRadius(corner: isRTL ? .bottomLeft : .bottomRight)
             guard leading != lastLeading || trailing != lastTrailing else { return }

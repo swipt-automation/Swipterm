@@ -194,9 +194,11 @@ private struct TerminalSplitViewRepresentable: UIViewControllerRepresentable {
         splitViewController.maximumPrimaryColumnWidth = 320
 
         let coordinator = context.coordinator
+        let cornerMetrics = SidebarCornerMetrics()
         let primaryHosting = UIHostingController(
             rootView: TerminalSidebarView(
                 sessionManager: sessionManager,
+                cornerMetrics: cornerMetrics,
                 onSelectSession: { coordinator.hideSidebarIfOverlay() },
                 onOpenSettings: {
                     coordinator.hideSidebarIfOverlay()
@@ -212,6 +214,14 @@ private struct TerminalSplitViewRepresentable: UIViewControllerRepresentable {
             #endif
         )
         primaryHosting.view.backgroundColor = .clear
+        primaryHosting.safeAreaRegions = .container
+        if #available(iOS 26.0, *) {
+            let cornerProbe = WindowCornerProbeView { leading in
+                cornerMetrics.windowLeadingRadius = leading
+            }
+            cornerProbe.frame = splitViewController.view.bounds
+            splitViewController.view.insertSubview(cornerProbe, at: 0)
+        }
         let secondaryHosting = UIHostingController(
             rootView: TerminalDetailView(
                 sessionManager: sessionManager,
@@ -408,6 +418,38 @@ private struct TerminalDetailView: View {
                     ToolbarItem(placement: .principal) { tabBar }
                 }
             }
+        }
+    }
+}
+
+@available(iOS 26.0, *)
+private final class WindowCornerProbeView: UIView {
+    private let onChange: (CGFloat) -> Void
+    private var lastLeading: CGFloat = -1
+
+    init(onChange: @escaping (CGFloat) -> Void) {
+        self.onChange = onChange
+        super.init(frame: .zero)
+        isUserInteractionEnabled = false
+        autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        cornerConfiguration = .corners(radius: .containerConcentric())
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard !bounds.isEmpty, window != nil else { return }
+        let isRTL = effectiveUserInterfaceLayoutDirection == .rightToLeft
+        let leading = effectiveRadius(corner: isRTL ? .bottomRight : .bottomLeft)
+        guard leading != lastLeading else { return }
+        lastLeading = leading
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            onChange(lastLeading)
         }
     }
 }
