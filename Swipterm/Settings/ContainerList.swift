@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 enum ContainerRoute: Hashable {
     case container(String)
@@ -117,14 +118,10 @@ struct ContainerDestinationModifier: ViewModifier {
                     if let creation = store.creations.first(where: { $0.id == id }) {
                         ProvisioningView(creation: creation)
                             .id(creation.attempt)
-                            .onAppear {
-                                followed = creation
-                            }
                     }
                 case .newContainer:
                     SetupView(draft: $draft) { creation in
                         draft = SetupDraft()
-                        followed = creation
                         path = path.dropLast() + [.creation(creation.id)]
                     }
                 }
@@ -156,7 +153,7 @@ struct ContainerImporterModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .fileImporter(isPresented: $isPresented, allowedContentTypes: SetupView.supportedArchiveTypes) { result in
+            .fileImporter(isPresented: $isPresented, allowedContentTypes: [.data]) { result in
                 do {
                     if let creation = try system.create(.importArchive(result.get())) {
                         onCreated(creation)

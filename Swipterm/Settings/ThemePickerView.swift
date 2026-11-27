@@ -25,9 +25,9 @@ struct ThemePickerView: View {
     var body: some View {
         List {
             if searchText.isEmpty {
-                ForEach(groupedKeys, id: \.self) { letter in
+                ForEach(grouped, id: \.letter) { letter, themes in
                     Section(letter) {
-                        ForEach(grouped[letter]!) { theme in
+                        ForEach(themes) { theme in
                             themeRow(theme)
                         }
                     }
@@ -64,14 +64,12 @@ struct ThemePickerView: View {
         .buttonStyle(.plain)
     }
 
-    private var grouped: [String: [GhosttyThemeDefinition]] {
+    private var grouped: [(letter: String, themes: [GhosttyThemeDefinition])] {
         Dictionary(grouping: themes) { theme in
             let first = theme.name.prefix(1).uppercased()
             return first.first!.isLetter ? first : "#"
         }
-    }
-
-    private var groupedKeys: [String] {
-        grouped.keys.sorted()
+        .sorted { $0.key < $1.key }
+        .map { (letter: $0.key, themes: $0.value) }
     }
 }

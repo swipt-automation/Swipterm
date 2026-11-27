@@ -21,7 +21,6 @@ struct TerminalTabBar: View {
             }
         }
         // UIKit measures the title view before allocating space beside its buttons.
-        // Size that offer from the column so overflow stays inside the scroll view.
         .frame(minWidth: 0, idealWidth: columnWidth, maxWidth: columnWidth)
         .frame(height: Self.height)
         .background { tabBarBackground }

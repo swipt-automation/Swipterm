@@ -9,32 +9,71 @@ nonisolated struct HostCommands: Sendable {
     let location: HostLocation
     let catalog: LinuxDistributionCatalogStore
 
-    private static let swiptermUsage = """
-    usage: swipterm <command> [options]
+    struct Failure: LocalizedError {
+        let message: String
+        var status: Int32 = 1
 
-    commands:
-      open <url>                  Open a URL on the host
-      location [options]          Read device location
-      caffeinate [on|off|status]  Manage background execution
-      container <command>         Manage other containers
-      completion <shell>          Generate shell completion script
-      help [command]              Show help for a command
-    """
+        var errorDescription: String? {
+            message
+        }
+    }
 
-    private static let openUsage = "usage: swipterm open <url>\n"
+    private static let helpFlags: [(value: String, description: String)] = [
+        ("-h", "Show help"),
+        ("--help", "Show help"),
+    ]
 
-    private static let locationUsage = """
-    usage: swipterm location [options]
+    private static let caffeinateModes: [(value: String, description: String)] = [
+        ("on", "Enable background execution"),
+        ("off", "Disable background execution"),
+        ("status", "Show current status"),
+    ]
 
-    options:
-      -w, --watch             Stream location updates continuously
-      -a, --accuracy <level>  Accuracy: reduced, 3km, 1km, 100m, 10m, best, nav
-      -j, --json              Format output as JSON lines
-      -h, --help              Show this help
-    """
+    private static let completionShells: [(value: String, description: String)] = [
+        ("bash", "Bash completion script"),
+        ("zsh", "Zsh completion script"),
+        ("fish", "Fish completion script"),
+        ("nushell", "Nushell completion script"),
+    ]
 
-    private static let caffeinateUsage = "usage: swipterm caffeinate [on|off|status]\n"
-    private static let completionUsage = "usage: swipterm completion <bash|zsh|fish|nushell>\n"
+    private static let commands: [(name: String, arguments: String, description: String)] = [
+        ("open", "<url>", "Open a URL on the host"),
+        ("location", "[options]", "Read device location"),
+        ("caffeinate", "[\(caffeinateModes.map(\.value).joined(separator: "|"))]", "Manage background execution"),
+        ("container", "<command>", "Manage other containers"),
+        ("completion", "<\(completionShells.map(\.value).joined(separator: "|"))>", "Generate shell completion script"),
+    ]
+
+    private static let accuracyLevels: [(value: String, description: String)] = [
+        ("reduced", "Reduced (~5 km, lowest power)"),
+        ("3km", "Three kilometers"),
+        ("1km", "One kilometer"),
+        ("100m", "Hundred meters"),
+        ("10m", "Nearest ten meters"),
+        ("best", "Best accuracy"),
+        ("nav", "Best for navigation"),
+    ]
+
+    private static let locationOptions: [(short: Character, long: String, value: String?, description: String)] = [
+        ("w", "watch", nil, "Stream location updates continuously"),
+        ("a", "accuracy", "<level>", "Desired location accuracy"),
+        ("j", "json", nil, "Format output as JSON lines"),
+        ("h", "help", nil, "Show help"),
+    ]
+
+    private static let swiptermUsage = usage("swipterm <command> [options]", [
+        ("commands", (commands + [("help", "[command]", "Show help for a command")]).map { ("\($0.name) \($0.arguments)", $0.description) }),
+    ])
+
+    private static let locationUsage = usage("swipterm location [options]", [
+        ("options", locationOptions.map { option in
+            ("-\(option.short), --\(option.long)" + (option.value.map { " \($0)" } ?? ""), option.description)
+        }),
+        ("levels", accuracyLevels.map { ($0.value, $0.description) }),
+    ])
+
+    private static let caffeinateUsage = commandUsage("caffeinate")
+    private static let completionUsage = commandUsage("completion")
 
     private static let bashCompletionScript = #"""
     _swipterm() {
@@ -120,6 +159,23 @@ nonisolated struct HostCommands: Sendable {
     ]
     """# + "\n"
 
+    static func usage(_ synopsis: String, _ sections: [(title: String, rows: [(syntax: String, description: String)])]) -> String {
+        let width = sections.flatMap(\.rows).map(\.syntax.count).max()! + 2
+        var text = "usage: \(synopsis)\n"
+        for section in sections {
+            text += "\n\(section.title):\n"
+            for row in section.rows {
+                text += "  " + row.syntax.padding(toLength: width, withPad: " ", startingAt: 0) + row.description + "\n"
+            }
+        }
+        return text
+    }
+
+    private static func commandUsage(_ name: String, invokedAs commandName: String? = nil) -> String {
+        let command = commands.first { $0.name == name }!
+        return "usage: \(commandName ?? "swipterm \(name)") \(command.arguments)\n"
+    }
+
     private struct LocationOptions: Sendable {
         var watch = false
         var accuracy: HostLocation.Accuracy?
@@ -168,7 +224,7 @@ nonisolated struct HostCommands: Sendable {
         }
         func fileType(at path: String) async throws -> LinuxFileType? {
             do {
-                return try await fileSystem.stat(path).type
+                return try await fileSystem.stat(path)
             } catch let error as LinuxError where error == .ENOENT {
                 return nil
             }
@@ -176,9 +232,7 @@ nonisolated struct HostCommands: Sendable {
         let zloginPath: String
         if try await fileType(at: "/etc/zsh") == .directory {
             zloginPath = "/etc/zsh/zlogin"
-        } else if try await fileType(at: "/bin/zsh") != nil {
-            zloginPath = "/etc/zlogin"
-        } else if try await fileType(at: "/usr/bin/zsh") != nil {
+        } else if try await [fileType(at: "/bin/zsh"), fileType(at: "/usr/bin/zsh")].contains(where: { $0 != nil }) {
             zloginPath = "/etc/zlogin"
         } else {
             return
@@ -198,25 +252,25 @@ nonisolated struct HostCommands: Sendable {
 
     private func handleSwipterm(_ invocation: HostCommandInvocation) async throws -> Int32 {
         guard let subcommand = invocation.arguments.first else {
-            try await invocation.standardError.write(Data((Self.swiptermUsage + "\n").utf8))
+            try await invocation.standardError.write(Data(Self.swiptermUsage.utf8))
             return 2
         }
         let rest = invocation.arguments.dropFirst()
         switch subcommand {
         case "-h", "--help":
-            try await invocation.standardOutput.write(Data((Self.swiptermUsage + "\n").utf8))
+            try await invocation.standardOutput.write(Data(Self.swiptermUsage.utf8))
             return 0
         case "help":
             guard let topic = rest.first else {
-                try await invocation.standardOutput.write(Data((Self.swiptermUsage + "\n").utf8))
+                try await invocation.standardOutput.write(Data(Self.swiptermUsage.utf8))
                 return 0
             }
             switch topic {
             case "open":
-                try await invocation.standardOutput.write(Data(Self.openUsage.utf8))
+                try await invocation.standardOutput.write(Data(Self.commandUsage("open").utf8))
                 return 0
             case "location":
-                try await invocation.standardOutput.write(Data((Self.locationUsage + "\n").utf8))
+                try await invocation.standardOutput.write(Data(Self.locationUsage.utf8))
                 return 0
             case "caffeinate":
                 try await invocation.standardOutput.write(Data(Self.caffeinateUsage.utf8))
@@ -263,7 +317,7 @@ nonisolated struct HostCommands: Sendable {
                 continue
             }
             if parsingOptions, strictHelp, argument == "-h" || argument == "--help" {
-                try await invocation.standardOutput.write(Data("usage: \(commandName) <url>\n".utf8))
+                try await invocation.standardOutput.write(Data(Self.commandUsage("open", invokedAs: commandName).utf8))
                 return 0
             }
             if parsingOptions, argument.hasPrefix("-") {
@@ -273,7 +327,7 @@ nonisolated struct HostCommands: Sendable {
             break
         }
         guard let target else {
-            try await invocation.standardError.write(Data("usage: \(commandName) <url>\n".utf8))
+            try await invocation.standardError.write(Data(Self.commandUsage("open", invokedAs: commandName).utf8))
             return 2
         }
         guard let url = URL(string: target), let scheme = url.scheme, !scheme.isEmpty else {
@@ -306,7 +360,7 @@ nonisolated struct HostCommands: Sendable {
                 return 1
             }
         case "off":
-            await location.disableCaffeinateFromCommand()
+            await location.setCaffeinateEnabled(false)
             return 0
         case "status":
             let enabled = await MainActor.run { settings.isCaffeinateEnabled }
@@ -387,35 +441,14 @@ nonisolated struct HostCommands: Sendable {
         return 0
     }
 
-    private static let accuracyCompletionItems: [(value: String, description: String)] = [
-        ("reduced", "Reduced (~5 km, lowest power)"),
-        ("3km", "Three kilometers"),
-        ("1km", "One kilometer"),
-        ("100m", "Hundred meters"),
-        ("10m", "Nearest ten meters"),
-        ("best", "Best accuracy"),
-        ("nav", "Best for navigation"),
-    ]
-
-    private static let subcommandCompletionItems: [(value: String, description: String)] = [
-        ("open", "Open a URL on the host"),
-        ("location", "Read device location"),
-        ("caffeinate", "Manage background execution"),
-        ("container", "Manage other containers"),
-        ("completion", "Generate shell completion script"),
-    ]
-
     private static func completionCandidates(for words: [String], containers: [String]) -> [(value: String, description: String)] {
+        let subcommands = commands.map { (value: $0.name, description: $0.description) }
         let first = words[0]
         if words.count == 1 {
             if first.hasPrefix("-") {
-                return [
-                    ("-h", "Show help"),
-                    ("--help", "Show help"),
-                ].filter { $0.value.hasPrefix(first) }
+                return helpFlags.filter { $0.value.hasPrefix(first) }
             }
-            let commands = subcommandCompletionItems + [("help", "Show help for a command")]
-            return commands.filter { $0.value.hasPrefix(first) }
+            return (subcommands + [("help", "Show help for a command")]).filter { $0.value.hasPrefix(first) }
         }
 
         let current = words[words.count - 1]
@@ -428,51 +461,42 @@ nonisolated struct HostCommands: Sendable {
         switch first {
         case "help":
             guard words.count == 2, !current.hasPrefix("-") else { return [] }
-            return subcommandCompletionItems.filter { $0.value.hasPrefix(current) }
+            return subcommands.filter { $0.value.hasPrefix(current) }
 
         case "completion":
             if current.hasPrefix("-") {
-                return [("-h", "Show help"), ("--help", "Show help")].filter { $0.value.hasPrefix(current) }
+                return helpFlags.filter { $0.value.hasPrefix(current) }
             }
             guard words.count == 2 else { return [] }
-            return [
-                ("bash", "Bash completion script"),
-                ("zsh", "Zsh completion script"),
-                ("fish", "Fish completion script"),
-                ("nushell", "Nushell completion script"),
-            ].filter { $0.value.hasPrefix(current) }
+            return completionShells.filter { $0.value.hasPrefix(current) }
 
         case "open":
             guard current.hasPrefix("-") else { return [] }
-            return [("-h", "Show help"), ("--help", "Show help")].filter { $0.value.hasPrefix(current) }
+            return helpFlags.filter { $0.value.hasPrefix(current) }
 
         case "caffeinate":
             if current.hasPrefix("-") {
-                return [("-h", "Show help"), ("--help", "Show help")].filter { $0.value.hasPrefix(current) }
+                return helpFlags.filter { $0.value.hasPrefix(current) }
             }
             guard words.count == 2 else { return [] }
-            return [
-                ("on", "Enable background execution"),
-                ("off", "Disable background execution"),
-                ("status", "Show current status"),
-            ].filter { $0.value.hasPrefix(current) }
+            return caffeinateModes.filter { $0.value.hasPrefix(current) }
 
         case "container":
             return containerCompletionCandidates(for: Array(words.dropFirst()), containers: containers)
 
         case "location":
             if let previous, previous == "--accuracy" || isShortAccuracyOption(previous) {
-                return accuracyCompletionItems.filter { $0.value.hasPrefix(current) }
+                return accuracyLevels.filter { $0.value.hasPrefix(current) }
             }
             if current.hasPrefix("--accuracy=") {
                 let prefix = String(current.dropFirst("--accuracy=".count))
-                return accuracyCompletionItems
+                return accuracyLevels
                     .filter { $0.value.hasPrefix(prefix) }
                     .map { ("--accuracy=\($0.value)", $0.description) }
             }
             if current.hasPrefix("-a"), !current.hasPrefix("--"), current.count > 2 {
                 let prefix = String(current.dropFirst(2))
-                return accuracyCompletionItems
+                return accuracyLevels
                     .filter { $0.value.hasPrefix(prefix) }
                     .map { ("-a\($0.value)", $0.description) }
             }
@@ -487,36 +511,15 @@ nonisolated struct HostCommands: Sendable {
                 }
             }
 
-            let usedWatch = prior.contains("--watch") || hasShortFlag("w")
-            let usedAccuracy = prior.contains("--accuracy") || prior.contains { $0.hasPrefix("--accuracy=") } || hasShortFlag("a")
-            let usedJSON = prior.contains("--json") || hasShortFlag("j")
-            let usedHelp = prior.contains("--help") || hasShortFlag("h")
-
             let includeShort = current.hasPrefix("-") && !current.hasPrefix("--")
             var flags: [(value: String, description: String)] = []
-            if !usedWatch {
+            for option in locationOptions {
+                let long = "--\(option.long)"
+                guard !prior.contains(where: { $0 == long || $0.hasPrefix(long + "=") }), !hasShortFlag(option.short) else { continue }
                 if includeShort {
-                    flags.append(("-w", "Stream location updates continuously"))
+                    flags.append(("-\(option.short)", option.description))
                 }
-                flags.append(("--watch", "Stream location updates continuously"))
-            }
-            if !usedAccuracy {
-                if includeShort {
-                    flags.append(("-a", "Desired location accuracy"))
-                }
-                flags.append(("--accuracy", "Desired location accuracy"))
-            }
-            if !usedJSON {
-                if includeShort {
-                    flags.append(("-j", "Format output as JSON lines"))
-                }
-                flags.append(("--json", "Format output as JSON lines"))
-            }
-            if !usedHelp {
-                if includeShort {
-                    flags.append(("-h", "Show help"))
-                }
-                flags.append(("--help", "Show help"))
+                flags.append((long, option.description))
             }
             return flags.filter { $0.value.hasPrefix(current) }
 
@@ -530,15 +533,14 @@ nonisolated struct HostCommands: Sendable {
         arguments: ArraySlice<String>
     ) async throws -> Int32 {
         let options: LocationOptions
-        switch Self.parseLocationOptions(arguments) {
-        case let .success(parsed):
-            options = parsed
-        case let .failure(error):
-            try await invocation.standardError.write(Data("swipterm location: \(error.message)\n\(Self.locationUsage)\n".utf8))
+        do {
+            options = try Self.parseLocationOptions(arguments)
+        } catch let error as Failure {
+            try await invocation.standardError.write(Data("swipterm location: \(error.message)\n\(Self.locationUsage)".utf8))
             return 2
         }
         if options.help {
-            try await invocation.standardOutput.write(Data((Self.locationUsage + "\n").utf8))
+            try await invocation.standardOutput.write(Data(Self.locationUsage.utf8))
             return 0
         }
 
@@ -561,11 +563,7 @@ nonisolated struct HostCommands: Sendable {
         }
     }
 
-    private struct OptionError: Error {
-        let message: String
-    }
-
-    private static func parseLocationOptions(_ arguments: ArraySlice<String>) -> Result<LocationOptions, OptionError> {
+    private static func parseLocationOptions(_ arguments: ArraySlice<String>) throws -> LocationOptions {
         var options = LocationOptions()
         var index = arguments.startIndex
         while index < arguments.endIndex {
@@ -573,7 +571,7 @@ nonisolated struct HostCommands: Sendable {
             index = arguments.index(after: index)
             if argument == "--" {
                 if index < arguments.endIndex {
-                    return .failure(OptionError(message: "unexpected argument: \(arguments[index])"))
+                    throw Failure(message: "unexpected argument: \(arguments[index])")
                 }
                 break
             }
@@ -582,10 +580,10 @@ nonisolated struct HostCommands: Sendable {
                     let flag = argument[..<equals]
                     let value = String(argument[argument.index(after: equals)...])
                     guard flag == "--accuracy" else {
-                        return .failure(OptionError(message: "unknown option: \(flag)"))
+                        throw Failure(message: "unknown option: \(flag)")
                     }
                     guard let accuracy = HostLocation.Accuracy(argument: value) else {
-                        return .failure(OptionError(message: "invalid accuracy: \(value)"))
+                        throw Failure(message: "invalid accuracy: \(value)")
                     }
                     options.accuracy = accuracy
                     continue
@@ -599,16 +597,16 @@ nonisolated struct HostCommands: Sendable {
                     options.help = true
                 case "--accuracy":
                     guard index < arguments.endIndex else {
-                        return .failure(OptionError(message: "missing value for --accuracy"))
+                        throw Failure(message: "missing value for --accuracy")
                     }
                     let value = arguments[index]
                     index = arguments.index(after: index)
                     guard let accuracy = HostLocation.Accuracy(argument: value) else {
-                        return .failure(OptionError(message: "invalid accuracy: \(value)"))
+                        throw Failure(message: "invalid accuracy: \(value)")
                     }
                     options.accuracy = accuracy
                 default:
-                    return .failure(OptionError(message: "unknown option: \(argument)"))
+                    throw Failure(message: "unknown option: \(argument)")
                 }
                 continue
             }
@@ -629,31 +627,31 @@ nonisolated struct HostCommands: Sendable {
                             chars = chars[chars.endIndex...]
                         } else {
                             guard index < arguments.endIndex else {
-                                return .failure(OptionError(message: "missing value for -a"))
+                                throw Failure(message: "missing value for -a")
                             }
                             value = arguments[index]
                             index = arguments.index(after: index)
                         }
                         guard let accuracy = HostLocation.Accuracy(argument: value) else {
-                            return .failure(OptionError(message: "invalid accuracy: \(value)"))
+                            throw Failure(message: "invalid accuracy: \(value)")
                         }
                         options.accuracy = accuracy
                     default:
-                        return .failure(OptionError(message: "unknown option: -\(flag)"))
+                        throw Failure(message: "unknown option: -\(flag)")
                     }
                 }
                 continue
             }
-            return .failure(OptionError(message: "unexpected argument: \(argument)"))
+            throw Failure(message: "unexpected argument: \(argument)")
         }
-        return .success(options)
+        return options
     }
 
     private static func isShortAccuracyOption(_ token: String) -> Bool {
         guard token.hasPrefix("-"), !token.hasPrefix("--"), token.count >= 2 else { return false }
         let flags = token.dropFirst()
         guard flags.last == "a" else { return false }
-        return flags.dropLast().allSatisfy { "wjh".contains($0) }
+        return flags.dropLast().allSatisfy { flag in locationOptions.contains { $0.short == flag && $0.value == nil } }
     }
 
     private final class StreamLeaseState: @unchecked Sendable {

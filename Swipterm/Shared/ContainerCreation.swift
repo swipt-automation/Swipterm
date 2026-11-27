@@ -56,7 +56,6 @@ final class ContainerCreation: Identifiable {
         case missingInit
         case exited(Int32)
         case signaled(Int32)
-        case halted
         case notContainer
 
         var errorDescription: String? {
@@ -64,18 +63,15 @@ final class ContainerCreation: Identifiable {
             case .notContainer:
                 String(localized: "This archive isn’t a Swipterm container.")
             case .missingInit:
-                "This system has no init system."
+                String(localized: "This system has no init system.")
             case let .exited(code):
-                "Initialization failed with exit status \(code)."
+                String(localized: "Initialization failed with exit status \(code).")
             case let .signaled(signal):
-                "Initialization was terminated by signal \(signal)."
-            case .halted:
-                "The container stopped during initialization."
+                String(localized: "Initialization was terminated by signal \(signal).")
             }
         }
     }
 
-    private static let loginTimeout = Duration.seconds(300)
     private static let outputDrainTimeout = Duration.seconds(1)
     private nonisolated static let installMetadataName = "metadata.json"
 
@@ -262,10 +258,7 @@ final class ContainerCreation: Identifiable {
                 try await installKernel(distribution, release: release, into: builder, directory: directory, console: console)
             }
             try Task.checkCancellation()
-            var installed = metadata
-            installed.setupCompleted = true
-            installed.setup = nil
-            try builder.write(JSONEncoder().encode(installed), to: ContainerStore.guestMetadataPath)
+            try builder.write(JSONEncoder().encode(metadata.completed), to: ContainerStore.guestMetadataPath)
         } else {
             guard let exported = try builder.contents(of: ContainerStore.guestMetadataPath) else {
                 throw Failure.notContainer
@@ -396,10 +389,7 @@ final class ContainerCreation: Identifiable {
             password: setup.password,
             software: setup.software
         )
-        var installed = metadata
-        installed.setupCompleted = true
-        installed.setup = nil
-        let completed = installed
+        let completed = metadata.completed
         let guestMetadata = try JSONEncoder().encode(completed)
 
         if let runtime = await system.runningRuntime() {
@@ -410,15 +400,15 @@ final class ContainerCreation: Identifiable {
                     }
                 }
             } catch {
-                throw store.runtime === runtime ? error : Failure.halted
+                throw store.runtime === runtime ? error : ContainerError.halted
             }
         } else {
             try await system.withManagedRuntime(root: root, hostname: metadata.name) { runtime in
                 console.appendStep(String(localized: "Starting Linux"))
                 do {
-                    try await runtime.waitReady(.login, timeout: Self.loginTimeout)
+                    try await runtime.waitReady(timeout: LinuxSystem.loginTimeout)
                 } catch let error as LinuxError where error == .ESRCH {
-                    throw Failure.halted
+                    throw ContainerError.halted
                 }
                 try await initialize(on: runtime, request: request, release: release, console: console, spawn: runtime.spawn)
                 try await runtime.fileSystem.writeFile(ContainerStore.guestMetadataPath, contents: guestMetadata)

@@ -45,24 +45,7 @@ struct TerminalSidebarView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Section {
-                        Button {
-                            sessionManager.addSession()
-                            onSelectSession()
-                        } label: {
-                            Label("New Terminal", systemImage: "plus")
-                        }
-                        ForEach(sessionManager.services.settings.shortcuts) { shortcut in
-                            Button {
-                                sessionManager.addSession(shortcut: shortcut)
-                                onSelectSession()
-                            } label: {
-                                Label {
-                                    Text(verbatim: shortcut.name)
-                                } icon: {
-                                    Image(systemName: shortcut.symbolName)
-                                }
-                            }
-                        }
+                        NewSessionMenuItems(sessionManager: sessionManager, onAdd: onSelectSession)
                     }
                     Section {
                         Button(action: onManageShortcuts) {
@@ -71,6 +54,32 @@ struct TerminalSidebarView: View {
                     }
                 } label: {
                     Label("New Session", systemImage: "plus")
+                }
+            }
+        }
+    }
+}
+
+struct NewSessionMenuItems: View {
+    let sessionManager: TerminalSessionManager
+    let onAdd: () -> Void
+
+    var body: some View {
+        Button {
+            sessionManager.addSession()
+            onAdd()
+        } label: {
+            Label("New Terminal", systemImage: "plus")
+        }
+        ForEach(sessionManager.services.settings.shortcuts) { shortcut in
+            Button {
+                sessionManager.addSession(shortcut: shortcut)
+                onAdd()
+            } label: {
+                Label {
+                    Text(verbatim: shortcut.name)
+                } icon: {
+                    Image(systemName: shortcut.symbolName)
                 }
             }
         }

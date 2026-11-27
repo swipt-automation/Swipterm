@@ -149,7 +149,11 @@ struct SetupSoftwareView: View {
                     SetupSSHView(ssh: $ssh)
                 } label: {
                     LabeledContent {
-                        Text(verbatim: ssh.isEnabled ? ssh.port : String(localized: "Off"))
+                        if ssh.isEnabled {
+                            Text(verbatim: ssh.port)
+                        } else {
+                            Text("Off")
+                        }
                     } label: {
                         Text(verbatim: "SSH")
                     }
@@ -159,7 +163,7 @@ struct SetupSoftwareView: View {
             Section("Developer Tools") {
                 ForEach(DeveloperTool.allCases, id: \.self) { tool in
                     let isSelected = software.developerTools.contains(tool)
-                    SetupSelectionRow(title: tool.displayName, isSelected: isSelected) {
+                    SetupSelectionRow(title: Text(tool.displayName), isSelected: isSelected) {
                         software.setDeveloperTool(tool, isEnabled: !isSelected)
                     }
                 }
@@ -169,7 +173,7 @@ struct SetupSoftwareView: View {
                 Section("Coding Agents") {
                     ForEach(CodingAgent.allCases, id: \.self) { agent in
                         let isSelected = software.agents.contains(agent)
-                        SetupSelectionRow(title: agent.displayName, isSelected: isSelected) {
+                        SetupSelectionRow(title: Text(agent.displayName), isSelected: isSelected) {
                             software.setAgent(agent, isEnabled: !isSelected)
                         }
                     }
@@ -183,14 +187,14 @@ struct SetupSoftwareView: View {
 }
 
 private struct SetupSelectionRow: View {
-    let title: String
+    let title: Text
     let isSelected: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack {
-                Text(verbatim: title)
+                title
                     .foregroundStyle(.primary)
                 Spacer()
                 if isSelected {

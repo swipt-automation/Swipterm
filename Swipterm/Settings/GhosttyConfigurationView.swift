@@ -22,18 +22,21 @@ struct GhosttyConfigurationView: View {
                 defaultTheme: AppSettings.defaultDarkTheme
             )
             Section("Font Configuration") {
-                Toggle("Follow Theme", isOn: $settings.fontFollowTheme)
-                if !settings.fontFollowTheme {
-                    NavigationLink {
-                        FontPickerView(selection: $settings.fontFamily)
-                    } label: {
-                        LabeledContent("Font", value: settings.fontFamily.isEmpty ? String(localized: "Follow Theme") : settings.fontFamily)
-                    }
-                    Stepper(value: $settings.fontSize, in: 8 ... 32, step: 1) {
-                        LabeledContent("Size") {
-                            Text(Int(settings.fontSize), format: .number)
-                                .monospacedDigit()
+                NavigationLink {
+                    FontPickerView(selection: $settings.fontFamily)
+                } label: {
+                    LabeledContent("Font") {
+                        if settings.fontFamily.isEmpty {
+                            Text("Follow Theme")
+                        } else {
+                            Text(settings.fontFamily)
                         }
+                    }
+                }
+                Stepper(value: $settings.fontSize, in: 8 ... 32, step: 1) {
+                    LabeledContent("Size") {
+                        Text(Int(settings.fontSize), format: .number)
+                            .monospacedDigit()
                     }
                 }
             }

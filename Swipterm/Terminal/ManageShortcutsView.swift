@@ -3,24 +3,20 @@ import SwiftUI
 struct ManageShortcutsView: View {
     let services: AppServices
 
-    private var settings: AppSettings {
-        services.settings
-    }
-
     @State private var suggestions: [TerminalShortcut]?
     @State private var editing: TerminalShortcut?
     @State private var suggestionFailure: String?
 
     var body: some View {
-        let commands = Set(settings.shortcuts.map(\.command))
+        let commands = Set(services.settings.shortcuts.map(\.command))
         let visibleSuggestions = (suggestions ?? []).filter { !commands.contains($0.command) }
         List {
-            if !settings.shortcuts.isEmpty {
+            if !services.settings.shortcuts.isEmpty {
                 Section("Shortcuts") {
-                    ForEach(settings.shortcuts) { shortcut in
+                    ForEach(services.settings.shortcuts) { shortcut in
                         row(shortcut)
                     }
-                    .onDelete { settings.shortcuts.remove(atOffsets: $0) }
+                    .onDelete { services.settings.shortcuts.remove(atOffsets: $0) }
                 }
             }
             if !visibleSuggestions.isEmpty {
@@ -32,7 +28,7 @@ struct ManageShortcutsView: View {
             }
         }
         .overlay {
-            if suggestions != nil, settings.shortcuts.isEmpty, visibleSuggestions.isEmpty {
+            if suggestions != nil, services.settings.shortcuts.isEmpty, visibleSuggestions.isEmpty {
                 ContentUnavailableView("No Shortcuts", systemImage: "terminal")
             }
         }
@@ -51,12 +47,12 @@ struct ManageShortcutsView: View {
             NavigationStack {
                 ShortcutEditorView(
                     shortcut: shortcut,
-                    isNew: !settings.shortcuts.contains { $0.id == shortcut.id }
+                    isNew: !services.settings.shortcuts.contains { $0.id == shortcut.id }
                 ) { saved in
-                    if let index = settings.shortcuts.firstIndex(where: { $0.id == saved.id }) {
-                        settings.shortcuts[index] = saved
+                    if let index = services.settings.shortcuts.firstIndex(where: { $0.id == saved.id }) {
+                        services.settings.shortcuts[index] = saved
                     } else {
-                        settings.shortcuts.append(saved)
+                        services.settings.shortcuts.append(saved)
                     }
                 }
             }

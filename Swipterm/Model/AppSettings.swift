@@ -43,7 +43,6 @@ final class AppSettings {
         static let darkTheme = "darkTheme"
         static let lightConfig = "lightConfig"
         static let darkConfig = "darkConfig"
-        static let fontFollowTheme = "fontFollowTheme"
         static let fontFamily = "fontFamily"
         static let fontSize = "fontSize"
         static let gpuMode = "gpuMode"
@@ -66,10 +65,6 @@ final class AppSettings {
 
     var darkConfig: String {
         didSet { saveTerminalAppearance(darkConfig, for: Key.darkConfig) }
-    }
-
-    var fontFollowTheme: Bool {
-        didSet { saveTerminalAppearance(fontFollowTheme, for: Key.fontFollowTheme) }
     }
 
     var fontFamily: String {
@@ -104,7 +99,6 @@ final class AppSettings {
         darkTheme = Self.storedTheme(in: store, for: Key.darkTheme) ?? Self.defaultDarkTheme
         lightConfig = store.value(String.self, for: Key.lightConfig) ?? ""
         darkConfig = store.value(String.self, for: Key.darkConfig) ?? ""
-        fontFollowTheme = store.value(Bool.self, for: Key.fontFollowTheme) ?? true
         fontFamily = store.value(String.self, for: Key.fontFamily) ?? ""
         fontSize = store.value(Double.self, for: Key.fontSize) ?? 10
         gpuMode = store.value(GPUMode.self, for: Key.gpuMode) ?? .automatic

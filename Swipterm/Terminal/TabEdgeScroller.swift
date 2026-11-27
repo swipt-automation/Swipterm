@@ -70,7 +70,6 @@ final class TabEdgeScroller: NSObject {
         let left = -scrollView.adjustedContentInset.left
         let right = max(left, scrollView.contentSize.width - scrollView.bounds.width + scrollView.adjustedContentInset.right)
         let next = offset + velocity * (link.targetTimestamp - link.timestamp)
-        // If UIKit already scrolled during this frame, use that progress too.
         let current = scrollView.contentOffset
         offset = min(right, max(left, velocity > 0 ? max(current.x, next) : min(current.x, next)))
         if offset != current.x {

@@ -34,7 +34,7 @@ func createASCClient(expireDuration time.Duration) *asc.Client {
 	if err != nil {
 		log.Fatal(err)
 	}
-	tokenConfig, err := asc.NewTokenConfig(os.Getenv("ASC_KEY_ID"), os.Getenv("ASC_KEY_ISSUER_ID"), expireDuration, privateKey)
+	tokenConfig, err := asc.NewTokenConfig(os.Getenv("ASC_KEY_ID"), "", expireDuration, privateKey)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import GhosttyTerminal
 import Observation
@@ -26,16 +27,29 @@ final class TerminalExtras: NSObject,
     @ObservationIgnored var onDesktopNotification: ((String, String) -> Void)?
     @ObservationIgnored var onNotificationFailure: ((any Error) -> Void)?
 
-    var title: String = ""
-    var workingDirectory: String = ""
+    private(set) var title = ""
+    private(set) var backgroundColor: TerminalColor
+
+    @ObservationIgnored private var cancellables: Set<AnyCancellable> = []
 
     init(state: TerminalViewState) {
         self.state = state
+        backgroundColor = state.backgroundColor
+        super.init()
+        state.$title
+            .sink { [weak self] title in
+                self?.title = title
+            }
+            .store(in: &cancellables)
+        state.$backgroundColor
+            .sink { [weak self] color in
+                self?.backgroundColor = color
+            }
+            .store(in: &cancellables)
     }
 
     func terminalDidChangeTitle(_ title: String) {
         state.terminalDidChangeTitle(title)
-        self.title = title
     }
 
     func terminalDidResize(_ size: TerminalGridMetrics) {
@@ -61,7 +75,6 @@ final class TerminalExtras: NSObject,
 
     func terminalDidChangeWorkingDirectory(_ path: String) {
         state.terminalDidChangeWorkingDirectory(path)
-        workingDirectory = path
     }
 
     func terminalDidFinishCommand(exitCode: Int?, durationNanos: UInt64) {

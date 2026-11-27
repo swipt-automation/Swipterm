@@ -57,7 +57,7 @@ private struct BootFailureSheet: View {
         NavigationStack(path: $path) {
             Form {
                 Section {
-                    Text(verbatim: failure.message)
+                    Text(failure.message)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
@@ -134,7 +134,7 @@ private struct BootRecoveryKernelsView: View {
                 Button {
                     system.restart(kernel: .release(release))
                 } label: {
-                    Text(verbatim: release)
+                    Text(release)
                 }
             }
         }
@@ -159,7 +159,7 @@ private struct BootRecoveryContainersView: View {
                 Button {
                     system.activate(container)
                 } label: {
-                    Text(verbatim: container.metadata.name)
+                    Text(container.metadata.name)
                 }
                 .disabled(container.id == store.activeContainerID)
             }

@@ -18,7 +18,7 @@ struct SwiptermApp: App {
             .environment(services.settings)
             .environment(services.location)
             .environment(services.catalog)
-            .environmentObject(services.fonts)
+            .environment(services.fonts)
             #if DEBUG || SIDELOAD
                 .environment(services.jit)
             #endif

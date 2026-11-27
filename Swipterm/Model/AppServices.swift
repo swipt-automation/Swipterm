@@ -1,10 +1,8 @@
 import Foundation
 
 final class AppServices {
-    let preferences: PreferenceStore
     let settings: AppSettings
     let location: HostLocation
-    let clipboard = HostClipboard()
     let pasteStaging = HostPasteStaging()
     let fonts: ImportedFontStore
     let catalog = LinuxDistributionCatalogStore()
@@ -15,7 +13,8 @@ final class AppServices {
     #endif
 
     init() {
-        preferences = PreferenceStore(database: AppDatabase.open())
+        let preferences = PreferenceStore(database: AppDatabase.open())
+        let clipboard = HostClipboard()
         settings = AppSettings(store: preferences)
         location = HostLocation(settings: settings)
         fonts = ImportedFontStore(settings: settings)

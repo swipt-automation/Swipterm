@@ -31,7 +31,6 @@ type sceneBatch struct {
 	Languages  []string `json:"languages"`
 }
 
-// capturePlan is decoded by the UI test runner.
 type capturePlan struct {
 	Scenes           []sceneBatch `json:"scenes"`
 	Orientation      string       `json:"orientation"`
@@ -247,13 +246,11 @@ func captureScreenshots(ctx context.Context, testRun string, job captureJob, sim
 		"-destination", "platform=iOS Simulator,id="+simulator.udid,
 		"-resultBundlePath", bundle, "-parallel-testing-enabled", "NO", "-collect-test-diagnostics", "never",
 	)
-	// xcodebuild strips TEST_RUNNER_ when forwarding variables to the UI test process.
 	test.Env = append(test.Environ(), "TEST_RUNNER_SCREENSHOT_PLAN="+string(plan))
 	testErr := runCommand(test)
 	if _, err := os.Stat(bundle); err != nil {
 		return errors.Join(testErr, err)
 	}
-	// A failing test can still have valid attachments from earlier languages.
 	if err := errors.Join(testErr, exportScreenshots(job, bundle, filepath.Join(directory, "attachments"))); err != nil {
 		return err
 	}

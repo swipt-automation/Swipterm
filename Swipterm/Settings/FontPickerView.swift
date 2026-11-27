@@ -6,7 +6,7 @@ struct FontPickerView: View {
     @Binding private var selection: String
     private let families: [String]
 
-    @EnvironmentObject private var fontStore: ImportedFontStore
+    @Environment(ImportedFontStore.self) private var fontStore
     @State private var searchText = ""
     @State private var showFileImporter = false
     @State private var errorMessage: String?
@@ -28,12 +28,12 @@ struct FontPickerView: View {
         List {
             if searchText.isEmpty {
                 Section {
-                    familyRow(name: "", label: String(localized: "Follow Theme"))
+                    familyRow(name: "", label: Text("Follow Theme"))
                 }
                 if !fontStore.fonts.isEmpty {
                     Section("Imported") {
                         ForEach(fontStore.fonts) { font in
-                            familyRow(name: font.familyName, label: font.familyName)
+                            familyRow(name: font.familyName, label: Text(font.familyName))
                         }
                         .onDelete { offsets in
                             let targets = offsets.map { fontStore.fonts[$0] }
@@ -41,17 +41,17 @@ struct FontPickerView: View {
                         }
                     }
                 }
-                ForEach(groupedKeys, id: \.self) { letter in
+                ForEach(grouped, id: \.letter) { letter, families in
                     Section(letter) {
-                        ForEach(grouped[letter]!, id: \.self) { family in
-                            familyRow(name: family, label: family)
+                        ForEach(families, id: \.self) { family in
+                            familyRow(name: family, label: Text(family))
                         }
                     }
                 }
             } else {
                 Section("Fonts") {
                     ForEach(filteredFamilies, id: \.self) { family in
-                        familyRow(name: family, label: family)
+                        familyRow(name: family, label: Text(family))
                     }
                 }
             }
@@ -103,13 +103,13 @@ struct FontPickerView: View {
         }
     }
 
-    private func familyRow(name: String, label: String) -> some View {
+    private func familyRow(name: String, label: Text) -> some View {
         Button {
             selection = name
             dismiss()
         } label: {
             HStack {
-                Text(label)
+                label
                     .font(name.isEmpty ? .body : .custom(name, size: 17))
                     .foregroundStyle(.primary)
                 Spacer()
@@ -129,16 +129,14 @@ struct FontPickerView: View {
             .filter { seen.insert($0).inserted && $0.localizedCaseInsensitiveContains(searchText) }
     }
 
-    private var grouped: [String: [String]] {
+    private var grouped: [(letter: String, families: [String])] {
         let imported = Set(fontStore.fonts.map(\.familyName))
         return Dictionary(grouping: families.filter { !imported.contains($0) }) { family in
             let first = family.prefix(1).uppercased()
             return first.first!.isLetter ? first : "#"
         }
-    }
-
-    private var groupedKeys: [String] {
-        grouped.keys.sorted()
+        .sorted { $0.key < $1.key }
+        .map { (letter: $0.key, families: $0.value) }
     }
 
     private func deleteImported(_ targets: [ImportedFont]) async {

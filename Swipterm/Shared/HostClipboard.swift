@@ -16,7 +16,6 @@ final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
     private weak var runtime: LinuxRuntime?
     private var lastObservedChangeCount = -1
     private var isWritingFromGuest = false
-    private var observers: [NSObjectProtocol] = []
 
     init() {
         let center = NotificationCenter.default
@@ -26,7 +25,7 @@ final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
             UIApplication.willEnterForegroundNotification,
             UIApplication.didBecomeActiveNotification,
         ]
-        observers = names.map { name in
+        for name in names {
             center.addObserver(forName: name, object: nil, queue: nil) { _ in
                 self.syncOffers(force: false)
             }
@@ -41,9 +40,9 @@ final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
         syncOffers(force: true)
     }
 
-    func detach(from runtime: LinuxRuntime?) {
+    func detach(from runtime: LinuxRuntime) {
         lock.withLock {
-            if self.runtime === runtime || runtime == nil {
+            if self.runtime === runtime {
                 self.runtime = nil
             }
         }
@@ -173,7 +172,7 @@ final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
         try? target?.setClipboardOffers(Self.plainTextMIMEs)
     }
 
-    static func offeredMIMETypes(from pasteboard: UIPasteboard = .general) -> [String] {
+    static func offeredMIMETypes(from pasteboard: UIPasteboard) -> [String] {
         let types = pasteboard.types.compactMap(UTType.init)
 
         var mimes: [String] = []
@@ -269,9 +268,9 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
         }
     }
 
-    func detach(from runtime: LinuxRuntime?) {
+    func detach(from runtime: LinuxRuntime) {
         lock.withLock {
-            if self.runtime === runtime || runtime == nil {
+            if self.runtime === runtime {
                 self.runtime = nil
             }
         }
@@ -298,7 +297,8 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
         } catch CocoaError.fileNoSuchFile {}
     }
 
-    static func hasPasteboardContent(_ pasteboard: UIPasteboard = .general) -> Bool {
+    static func hasPasteboardContent() -> Bool {
+        let pasteboard = UIPasteboard.general
         if pasteboard.hasStrings || pasteboard.hasURLs || pasteboard.hasImages {
             return true
         }

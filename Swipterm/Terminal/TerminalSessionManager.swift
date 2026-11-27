@@ -60,6 +60,18 @@ final class TerminalSessionManager {
         sessions.move(fromOffsets: offsets, toOffset: destination)
     }
 
+    func moveSessions(_ ids: Set<UUID>, onto targetID: UUID) -> Bool {
+        let order = sessions.map(\.id)
+        guard let source = order.firstIndex(where: ids.contains),
+              let target = order.firstIndex(of: targetID)
+        else { return false }
+        if !ids.contains(targetID) {
+            let insertion = source < target ? target + 1 : target
+            moveSessions(order.filter(ids.contains), before: order[insertion...].first { !ids.contains($0) })
+        }
+        return true
+    }
+
     func selectAdjacentSession(offset: Int) {
         guard sessions.count > 1 else { return }
         let currentIndex = sessions.firstIndex { $0.id == activeSessionID }!

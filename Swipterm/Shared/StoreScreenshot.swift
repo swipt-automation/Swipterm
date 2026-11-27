@@ -1,6 +1,6 @@
 #if SWIPTERM_STORE_SCREENSHOTS && targetEnvironment(simulator)
+    import Foundation
     import SwiftUI
-    import UIKit
 
     enum StoreScreenshot: String {
         case setup
@@ -28,7 +28,6 @@
             isRecommended: true
         )
 
-        /// The guest's /etc/motd is displayed in English in every app localization.
         static let loginScreen: String = {
             let hostname = LinuxDistribution.alpine.defaultContainerName
             let motd = """

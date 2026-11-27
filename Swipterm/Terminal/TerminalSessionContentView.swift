@@ -7,13 +7,12 @@ struct TerminalSessionContentView: View {
     let isVisible: Bool
     let onClose: () -> Void
 
-    @Environment(\.colorScheme) private var colorScheme
     @State private var isPresentingEnd = false
     @State private var isEndAcknowledged = false
 
     var body: some View {
         ZStack {
-            backgroundColor
+            Color(session.extras.backgroundColor)
                 .ignoresSafeArea()
             TerminalSurfaceView(
                 surfaceView: session.surfaceView,
@@ -109,17 +108,8 @@ struct TerminalSessionContentView: View {
         return Text("Session Ended")
     }
 
-    private var backgroundColor: Color {
-        if let terminalColor = session.backgroundColor {
-            return Color(terminalColor)
-        }
-        return Color(uiColor: .systemBackground)
-    }
-
     private var overlayColorScheme: ColorScheme {
-        guard let terminalColor = session.backgroundColor else {
-            return colorScheme
-        }
+        let terminalColor = session.extras.backgroundColor
         let luminance = 0.2126 * Double(terminalColor.red)
             + 0.7152 * Double(terminalColor.green)
             + 0.0722 * Double(terminalColor.blue)

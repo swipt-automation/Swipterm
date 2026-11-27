@@ -3,7 +3,6 @@
     import SwiftUI
     import UIKit
 
-    /// The UI test posts a one-based language index and waits for that index's acknowledgment.
     struct StoreScreenshotControl: UIViewRepresentable {
         let name: String
         let index: Int
@@ -64,7 +63,6 @@
                 guard let window, let index, scheduledIndex != index else { return }
                 scheduledIndex = index
                 window.semanticContentAttribute = direction == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
-                // Leave SwiftUI's update pass before committing pending UIKit layout to the render server.
                 DispatchQueue.main.async { [weak self] in
                     guard let self, self.window === window, self.index == index else { return }
                     window.layoutIfNeeded()

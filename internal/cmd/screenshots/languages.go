@@ -8,8 +8,6 @@ import (
 	"slices"
 )
 
-// App languages with different App Store locale identifiers. All other
-// languages use their string catalog identifier as the output directory.
 var storeLocales = map[string][]string{
 	"ar":     {"ar-SA"},
 	"bn":     {"bn-BD"},

@@ -110,34 +110,28 @@ nonisolated struct LinuxReleaseImage: Identifiable, Hashable, Codable, Sendable 
     let artifactPath: String
     let sortRank: Int
     let isRecommended: Bool
+    var channel: Channel?
+
+    nonisolated enum Channel: String, Codable, Hashable, Sendable {
+        case rolling
+        case edge
+        case testing
+        case unstable
+    }
 
     var archiveURL: URL {
         distribution.imageServerURL.appending(path: artifactPath, directoryHint: .notDirectory)
     }
-}
 
-nonisolated struct ContainerSetup: Codable, Equatable, Sendable {
-    var password: String?
-    var software: ContainerSoftware
-}
-
-nonisolated struct ContainerMetadata: Codable, Equatable, Sendable {
-    var schemaVersion = 2
-    let name: String
-    var distributionID: String?
-    let installedAt: Date
-    var defaultUser: String
-    var setupCompleted: Bool
-    var setup: ContainerSetup?
-
-    var distribution: LinuxDistribution? {
-        distributionID.flatMap(LinuxDistribution.init(rawValue:))
+    var localizedTitle: LocalizedStringResource? {
+        switch channel {
+        case .rolling: "Rolling"
+        case .edge: "Edge"
+        case .testing: "\(displayTitle) (Testing)"
+        case .unstable: "\(displayTitle) (Unstable)"
+        case nil: nil
+        }
     }
-}
-
-nonisolated struct LinuxContainer: Identifiable, Equatable, Sendable {
-    let id: String
-    var metadata: ContainerMetadata
 }
 
 @Observable
@@ -270,7 +264,8 @@ private nonisolated enum LinuxDistributionCatalogClient {
                 buildSerial: serial,
                 artifactPath: "\(directory)/rootfs.tar.xz",
                 sortRank: label.rank,
-                isRecommended: distribution == .ubuntu && release.lowercased() == "noble"
+                isRecommended: distribution == .ubuntu && release.lowercased() == "noble",
+                channel: label.channel
             )
         }
         if latestByID.isEmpty {
@@ -296,7 +291,8 @@ private nonisolated enum LinuxDistributionCatalogClient {
                 buildSerial: serial,
                 artifactPath: "live/\(serial)/\(file)",
                 sortRank: 1000,
-                isRecommended: true
+                isRecommended: true,
+                channel: .rolling
             )]
         }
         throw URLError(.cannotParseResponse)
@@ -305,62 +301,62 @@ private nonisolated enum LinuxDistributionCatalogClient {
     private static func formatReleaseLabel(
         distribution: LinuxDistribution,
         release: String
-    ) -> (title: String, rank: Int) {
+    ) -> (title: String, rank: Int, channel: LinuxReleaseImage.Channel?) {
         let lowered = release.lowercased()
         switch distribution {
         case .ubuntu:
             switch lowered {
-            case "resolute": return ("26.04 LTS (Resolute)", 26040)
-            case "stonking": return ("26.10 (Stonking)", 26030)
-            case "noble": return ("24.04 LTS (Noble)", 24040)
-            case "jammy": return ("22.04 LTS (Jammy)", 22040)
-            case "focal": return ("20.04 LTS (Focal)", 20040)
-            default: return (release.capitalized, numericRank(release))
+            case "resolute": return ("26.04 LTS (Resolute)", 26040, nil)
+            case "stonking": return ("26.10 (Stonking)", 26030, nil)
+            case "noble": return ("24.04 LTS (Noble)", 24040, nil)
+            case "jammy": return ("22.04 LTS (Jammy)", 22040, nil)
+            case "focal": return ("20.04 LTS (Focal)", 20040, nil)
+            default: return (release.capitalized, numericRank(release), nil)
             }
         case .debian:
             switch lowered {
-            case "trixie": return ("13 (Trixie)", 1300)
-            case "bookworm": return ("12 (Bookworm)", 1200)
-            case "bullseye": return ("11 (Bullseye)", 1100)
-            case "forky": return ("Forky (Testing)", 1250)
-            case "sid": return ("Sid (Unstable)", 1240)
-            default: return (release.capitalized, numericRank(release))
+            case "trixie": return ("13 (Trixie)", 1300, nil)
+            case "bookworm": return ("12 (Bookworm)", 1200, nil)
+            case "bullseye": return ("11 (Bullseye)", 1100, nil)
+            case "forky": return ("Forky", 1250, .testing)
+            case "sid": return ("Sid", 1240, .unstable)
+            default: return (release.capitalized, numericRank(release), nil)
             }
         case .devuan:
             switch lowered {
-            case "excalibur": return ("6 (Excalibur)", 600)
-            case "daedalus": return ("5 (Daedalus)", 500)
-            case "chimaera": return ("4 (Chimaera)", 400)
-            default: return (release.capitalized, numericRank(release))
+            case "excalibur": return ("6 (Excalibur)", 600, nil)
+            case "daedalus": return ("5 (Daedalus)", 500, nil)
+            case "chimaera": return ("4 (Chimaera)", 400, nil)
+            default: return (release.capitalized, numericRank(release), nil)
             }
         case .alpine:
             if lowered == "edge" {
-                return ("Edge", 100)
+                return ("Edge", 100, .edge)
             }
-            return (release, numericRank(release) + 1000)
+            return (release, numericRank(release) + 1000, nil)
         case .centos:
             if lowered.hasSuffix("-stream") {
                 let major = release.replacingOccurrences(of: "-Stream", with: "", options: .caseInsensitive)
-                return ("Stream \(major)", numericRank(major) + 1000)
+                return ("Stream \(major)", numericRank(major) + 1000, nil)
             }
-            return (release, numericRank(release))
+            return (release, numericRank(release), nil)
         case .openSUSE:
             if lowered == "tumbleweed" {
-                return ("Tumbleweed", 2000)
+                return ("Tumbleweed", 2000, nil)
             }
-            return ("Leap \(release)", numericRank(release) + 1000)
+            return ("Leap \(release)", numericRank(release) + 1000, nil)
         case .arch, .kali:
             if lowered == "current" {
-                return ("Rolling", 1000)
+                return ("Rolling", 1000, .rolling)
             }
-            return (release, numericRank(release))
+            return (release, numericRank(release), nil)
         case .openEuler:
             if lowered == "24.03" {
-                return ("24.03 LTS", 24030)
+                return ("24.03 LTS", 24030, nil)
             }
-            return (release, numericRank(release))
+            return (release, numericRank(release), nil)
         case .alma, .fedora, .oracle, .rocky, .void:
-            return (release, numericRank(release))
+            return (release, numericRank(release), nil)
         }
     }
 

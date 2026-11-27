@@ -14,9 +14,9 @@ extern void IOHIDEventSystemClientDispatchEvent(IOHIDEventSystemClientRef client
 
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
-        NSNumber *angle = argc == 2 ? (@{@"open": @180, @"closed": @0})[@(argv[1])] : nil;
+        NSNumber *angle = argc == 2 ? (@{@"open": @180})[@(argv[1])] : nil;
         if (!angle) {
-            fprintf(stderr, "Expected pose open or closed\n");
+            fprintf(stderr, "Expected pose open\n");
             return 2;
         }
         NSDictionary *payload = @{

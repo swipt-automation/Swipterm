@@ -4,7 +4,6 @@ import SwiptermKit
 
 nonisolated struct KernelPackage: Sendable {
     let name: String
-    let version: String
     let url: URL
     let record: Data?
     let isDependency: Bool
@@ -20,15 +19,15 @@ nonisolated enum KernelBootstrapError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unknownRelease:
-            "The image has no os-release."
+            String(localized: "The image has no os-release.")
         case let .missingReleaseField(name):
-            "The image's os-release has no \(name)."
+            String(localized: "The image’s os-release has no \(name).")
         case let .kernelUnavailable(distribution):
             String(localized: "\(distribution) has no kernel package for this release.")
         case let .invalidIndex(url):
-            "Unrecognized package index: \(url.absoluteString)"
+            String(localized: "Unrecognized package index: \(url.absoluteString)")
         case let .invalidPackage(name):
-            "Unrecognized package: \(name)"
+            String(localized: "Unrecognized package: \(name)")
         }
     }
 }
@@ -143,11 +142,8 @@ nonisolated struct KernelBootstrap: Sendable {
         case .void:
             try registerXBPS(installed, in: builder)
         }
-        let names = installed.map { "\($0.package.name) \($0.package.version)\n" }.joined()
-        try builder.write(Data(names.utf8), to: "\(Self.stagingDirectory)/packages")
+        try builder.write(Data(), to: "\(Self.stagingDirectory)/registered")
     }
-
-    // MARK: - APT
 
     private struct AptSource {
         let base: String
@@ -228,7 +224,6 @@ nonisolated struct KernelBootstrap: Sendable {
             }
             return KernelPackage(
                 name: stanza.name,
-                version: stanza.version,
                 url: url,
                 record: nil,
                 isDependency: offset > 0
@@ -288,8 +283,6 @@ nonisolated struct KernelBootstrap: Sendable {
         finish()
     }
 
-    // MARK: - RPM
-
     private struct RPMRecord {
         let name: String
         let epoch: String
@@ -333,7 +326,6 @@ nonisolated struct KernelBootstrap: Sendable {
             return ([primary] + companions).map { record in
                 KernelPackage(
                     name: record.name,
-                    version: "\(record.version)-\(record.release)",
                     url: record.url,
                     record: nil,
                     isDependency: record.name != primary.name
@@ -429,8 +421,6 @@ nonisolated struct KernelBootstrap: Sendable {
         return String(text[text.index(after: close) ..< end.lowerBound])
     }
 
-    // MARK: - APK
-
     private func apk(_ repository: String, name: String, fetch: Fetch) async throws -> [KernelPackage] {
         let indexURL = URL(string: "\(repository)/aarch64/APKINDEX.tar.gz")!
         let file = try await fetch(indexURL)
@@ -447,7 +437,6 @@ nonisolated struct KernelBootstrap: Sendable {
         }
         return [KernelPackage(
             name: name,
-            version: version,
             url: url,
             record: Data(record.trimmingCharacters(in: .newlines).utf8),
             isDependency: false
@@ -462,8 +451,6 @@ nonisolated struct KernelBootstrap: Sendable {
         return fields
     }
 
-    // MARK: - pacman
-
     private func pacman(_ repository: String, name: String, fetch: Fetch) async throws -> [KernelPackage] {
         let databaseURL = URL(string: "\(repository)/core.db")!
         let file = try await fetch(databaseURL)
@@ -472,14 +459,11 @@ nonisolated struct KernelBootstrap: Sendable {
             guard path.hasPrefix("\(name)-"), path.hasSuffix("/desc") else { continue }
             let desc = try Self.pacmanSections(String(decoding: reader.readToEnd(), as: UTF8.self))
             guard desc["NAME"]?.first == name else { continue }
-            guard let version = desc["VERSION"]?.first, let filename = desc["FILENAME"]?.first,
-                  let url = URL(string: "\(repository)/\(filename)")
-            else {
+            guard let filename = desc["FILENAME"]?.first, let url = URL(string: "\(repository)/\(filename)") else {
                 throw KernelBootstrapError.invalidIndex(databaseURL)
             }
             return [KernelPackage(
                 name: name,
-                version: version,
                 url: url,
                 record: nil,
                 isDependency: false
@@ -504,8 +488,6 @@ nonisolated struct KernelBootstrap: Sendable {
         return sections
     }
 
-    // MARK: - XBPS
-
     private func xbps(_ repository: String, meta: String, fetch: Fetch) async throws -> [KernelPackage] {
         let indexURL = URL(string: "\(repository)/aarch64-repodata")!
         let file = try await fetch(indexURL)
@@ -528,7 +510,6 @@ nonisolated struct KernelBootstrap: Sendable {
             }
             return try KernelPackage(
                 name: name,
-                version: String(pkgver.dropFirst(name.count + 1)),
                 url: url,
                 record: PropertyListSerialization.data(fromPropertyList: entry, format: .xml, options: 0),
                 isDependency: isDependency
@@ -557,8 +538,6 @@ nonisolated struct KernelBootstrap: Sendable {
         }
         return nil
     }
-
-    // MARK: - Package databases
 
     private func registerDpkg(_ installed: [Installed], in builder: LinuxRootImageBuilder) throws {
         var status = try String(decoding: builder.contents(of: "/var/lib/dpkg/status")!, as: UTF8.self)

@@ -2,7 +2,6 @@ import GameController
 import GhosttyTerminal
 import SwiftUI
 import UIKit
-import UniformTypeIdentifiers
 
 struct TerminalSurfaceView: View {
     let surfaceView: SurfaceView
@@ -143,8 +142,8 @@ struct TerminalSurfaceView: View {
         private var selection = NSRange(location: 1, length: 0)
         private var typedText = ""
 
-        override init(frame: CGRect) {
-            super.init(frame: frame)
+        init(state: TerminalViewState, delegate: TerminalExtras) {
+            super.init(frame: .zero)
             _ = SoftwareKeyboardTracker.shared
             for interaction in interactions where interaction is UIDropInteraction {
                 removeInteraction(interaction)
@@ -152,6 +151,9 @@ struct TerminalSurfaceView: View {
             addInteraction(UIDropInteraction(delegate: dropHandler))
             NotificationCenter.default.addObserver(self, selector: #selector(hardwareKeyboardDidChange), name: .GCKeyboardDidConnect, object: nil)
             NotificationCenter.default.addObserver(self, selector: #selector(hardwareKeyboardDidChange), name: .GCKeyboardDidDisconnect, object: nil)
+            controller = state.controller
+            configuration = state.configuration
+            self.delegate = delegate
         }
 
         @available(*, unavailable)

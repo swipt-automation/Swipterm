@@ -98,12 +98,7 @@
             case .failed:
                 browser?.cancel()
                 browser = nil
-                generation &+= 1
-                candidates = []
-                server = nil
-                serverName = nil
-                connection?.cancel()
-                status = .unreachable
+                fallthrough
             case .waiting:
                 generation &+= 1
                 candidates = []
@@ -128,12 +123,14 @@
                 .sorted { Self.name($0) < Self.name($1) }
             guard sorted != candidates else { return }
             candidates = sorted
-            if status == .connected, sorted.contains(where: {
-                Self.name($0) == serverName && (Self.txtRecord($0)["auth"] == "1") == requiresToken
-            }) {
+            if status == .connected, candidatesContainServer {
                 return
             }
             connect(userInitiated: false)
+        }
+
+        private var candidatesContainServer: Bool {
+            candidates.contains { Self.name($0) == serverName && Self.requiresToken($0) == requiresToken }
         }
 
         private static func name(_ result: NWBrowser.Result) -> String {
@@ -144,6 +141,10 @@
         private static func txtRecord(_ result: NWBrowser.Result) -> NWTXTRecord {
             guard case let .bonjour(record) = result.metadata else { return NWTXTRecord() }
             return record
+        }
+
+        private static func requiresToken(_ result: NWBrowser.Result) -> Bool {
+            txtRecord(result)["auth"] == "1"
         }
 
         private func connect(userInitiated: Bool) {
@@ -179,7 +180,7 @@
                     if Task.isCancelled || self.generation != generation {
                         return
                     }
-                    let candidateRequiresToken = Self.txtRecord(candidate)["auth"] == "1"
+                    let candidateRequiresToken = Self.requiresToken(candidate)
 
                     do {
                         let resolved = try await Self.resolve(candidate.endpoint)
@@ -215,14 +216,13 @@
                 }
 
                 guard self.generation == generation else { return }
+                requiresToken = false
                 if let lastFailure {
-                    requiresToken = false
                     status = .unreachable
                     if userInitiated {
                         errorMessage = lastFailure
                     }
                 } else {
-                    requiresToken = false
                     status = .notFound
                 }
             }
@@ -236,7 +236,7 @@
             enableTask = Task {
                 var failure: (any Error)?
                 do {
-                    await Self.waitForFrames(Self.framesBeforeHandshake)
+                    await Self.waitForFrames()
                     if isEnabled {
                         try await client.enableJIT(bundleID: Bundle.main.bundleIdentifier!, pid: UInt64(getpid()))
                         try await Self.prepareMemory()
@@ -250,11 +250,8 @@
                     errorMessage = Self.describe(failure)
                 }
                 if pendingReconnect {
-                    let userInitiated = pendingUserInitiated
-                    connect(userInitiated: userInitiated)
-                } else if status == .enabling, candidates.contains(where: {
-                    Self.name($0) == serverName && (Self.txtRecord($0)["auth"] == "1") == requiresToken
-                }) {
+                    connect(userInitiated: pendingUserInitiated)
+                } else if status == .enabling, candidatesContainServer {
                     status = .connected
                 } else if status == .enabling || !candidates.isEmpty {
                     connect(userInitiated: false)
@@ -262,9 +259,9 @@
             }
         }
 
-        private static func waitForFrames(_ count: Int) async {
+        private static func waitForFrames() async {
             await withCheckedContinuation { continuation in
-                let counter = FrameCounter(remaining: count, continuation: continuation)
+                let counter = FrameCounter(remaining: framesBeforeHandshake, continuation: continuation)
                 let link = CADisplayLink(target: counter, selector: #selector(FrameCounter.step))
                 link.add(to: .main, forMode: .common)
                 Task {

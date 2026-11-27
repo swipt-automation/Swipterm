@@ -14,19 +14,22 @@ nonisolated enum ContainerError: LocalizedError {
     case readOnly(String)
     case notMounted(String)
     case noMachine
+    case halted
 
     var errorDescription: String? {
         switch self {
         case let .busy(name):
-            "\(name) is in use."
+            String(localized: "\(name) is in use.")
         case let .active(name):
-            "\(name) is the active container."
+            String(localized: "\(name) is the active container.")
         case let .readOnly(name):
-            "\(name) is mounted read-only; unmount it first."
+            String(localized: "\(name) is mounted read-only; unmount it first.")
         case let .notMounted(name):
-            "\(name) isn’t mounted."
+            String(localized: "\(name) isn’t mounted.")
         case .noMachine:
-            "No container is running."
+            String(localized: "No container is running.")
+        case .halted:
+            String(localized: "The container stopped unexpectedly.")
         }
     }
 }
@@ -39,6 +42,45 @@ nonisolated struct ContainerReadiness: Sendable {
 
     var isReady: Bool {
         !kernels.isEmpty && hasInit && hasDefaultUser
+    }
+}
+
+nonisolated struct ContainerSetup: Codable, Equatable, Sendable {
+    var password: String?
+    var software: ContainerSoftware
+}
+
+nonisolated struct ContainerMetadata: Codable, Equatable, Sendable {
+    let name: String
+    var distributionID: String?
+    let installedAt: Date
+    var defaultUser: String
+    var setupCompleted: Bool
+    var setup: ContainerSetup?
+
+    var distribution: LinuxDistribution? {
+        distributionID.flatMap(LinuxDistribution.init(rawValue:))
+    }
+
+    var completed: ContainerMetadata {
+        var metadata = self
+        metadata.setupCompleted = true
+        metadata.setup = nil
+        return metadata
+    }
+}
+
+nonisolated struct LinuxContainer: Identifiable, Equatable, Sendable {
+    let id: String
+    var metadata: ContainerMetadata
+
+    static func sanitizedName(_ raw: String) -> String {
+        let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789-")
+        let cleaned = String(raw.lowercased().map { allowed.contains($0) ? $0 : "-" })
+        let collapsed = cleaned
+            .split(separator: "-", omittingEmptySubsequences: true)
+            .joined(separator: "-")
+        return collapsed.isEmpty ? "linux" : String(collapsed.prefix(63)).trimmingCharacters(in: CharacterSet(charactersIn: "-"))
     }
 }
 

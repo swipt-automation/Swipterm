@@ -5,7 +5,7 @@ import UIKit
 
 @Observable
 final class HostLocation: NSObject {
-    nonisolated enum Accuracy: String, CaseIterable, Comparable, Sendable {
+    nonisolated enum Accuracy: String, Comparable, Sendable {
         case reduced
         case threeKilometers = "3km"
         case kilometer = "1km"
@@ -166,57 +166,23 @@ final class HostLocation: NSObject {
 
     func enableCaffeinateFromCommand() async throws {
         settings.isCaffeinateAvailable = true
-        if authorization == .notDetermined {
-            guard UIApplication.shared.applicationState != .background else {
-                throw Failure.foregroundRequired
-            }
-            await waitForAuthorization()
-            try Task.checkCancellation()
-        }
-        switch authorization {
-        case .authorizedAlways:
-            break
-        case .authorizedWhenInUse:
-            if UIApplication.shared.applicationState == .background, !isKeepingBackgroundAlive {
-                settings.isCaffeinateEnabled = false
-                reconcile()
-                throw Failure.alwaysAuthorizationRequired
-            }
-        default:
+        try await requestAuthorizationIfNeeded()
+        if let failure = authorizationFailure {
             settings.isCaffeinateEnabled = false
             reconcile()
-            throw Failure.authorizationDenied
+            throw failure
         }
         settings.isCaffeinateEnabled = true
         reconcile()
     }
 
-    func disableCaffeinateFromCommand() {
-        pendingUICaffeinateAuthorization = false
-        settings.isCaffeinateEnabled = false
-        reconcile()
-    }
-
     func prepareAccess(accuracy: Accuracy?) async throws {
-        if authorization == .notDetermined {
-            guard UIApplication.shared.applicationState != .background else {
-                throw Failure.foregroundRequired
-            }
-            await waitForAuthorization()
-            try Task.checkCancellation()
+        try await requestAuthorizationIfNeeded()
+        if let failure = authorizationFailure {
+            throw failure
         }
-        switch authorization {
-        case .authorizedAlways:
-            break
-        case .authorizedWhenInUse:
-            if UIApplication.shared.applicationState == .background, !isKeepingBackgroundAlive {
-                throw Failure.alwaysAuthorizationRequired
-            }
-            if UIApplication.shared.applicationState != .background {
-                requestAlwaysIfNeeded()
-            }
-        default:
-            throw Failure.authorizationDenied
+        if authorization == .authorizedWhenInUse, UIApplication.shared.applicationState != .background {
+            requestAlwaysIfNeeded()
         }
         if let accuracy,
            accuracy.requiresFullAccuracy,
@@ -395,7 +361,7 @@ final class HostLocation: NSObject {
             manager.startUpdatingLocation()
             isUpdating = true
         }
-        isKeepingBackgroundAlive = isUpdating
+        isKeepingBackgroundAlive = true
     }
 
     private func requestAlwaysIfNeeded() {
@@ -404,7 +370,22 @@ final class HostLocation: NSObject {
         manager.requestAlwaysAuthorization()
     }
 
-    private func waitForAuthorization() async {
+    private var authorizationFailure: Failure? {
+        switch authorization {
+        case .authorizedAlways:
+            nil
+        case .authorizedWhenInUse:
+            UIApplication.shared.applicationState == .background && !isKeepingBackgroundAlive ? .alwaysAuthorizationRequired : nil
+        default:
+            .authorizationDenied
+        }
+    }
+
+    private func requestAuthorizationIfNeeded() async throws {
+        guard authorization == .notDetermined else { return }
+        guard UIApplication.shared.applicationState != .background else {
+            throw Failure.foregroundRequired
+        }
         manager.requestWhenInUseAuthorization()
         let id = UUID()
         await withTaskCancellationHandler {
@@ -416,6 +397,7 @@ final class HostLocation: NSObject {
                 self.authorizationWaiters.removeValue(forKey: id)?.resume()
             }
         }
+        try Task.checkCancellation()
     }
 
     private func handleAuthorizationUpdate() {
@@ -429,11 +411,7 @@ final class HostLocation: NSObject {
             }
         }
         if authorization == .denied || authorization == .restricted {
-            let activeLeases = Array(leases.values)
-            leases.removeAll()
-            for lease in activeLeases {
-                lease.handler(.failure(.authorizationDenied))
-            }
+            failLeases(.authorizationDenied)
         } else {
             pendingUICaffeinateAuthorization = false
         }
@@ -458,23 +436,23 @@ final class HostLocation: NSObject {
             case .locationUnknown:
                 return
             case .denied:
-                let activeLeases = Array(leases.values)
-                leases.removeAll()
-                for lease in activeLeases {
-                    lease.handler(.failure(.authorizationDenied))
-                }
+                failLeases(.authorizationDenied)
                 reconcile()
                 return
             default:
                 break
             }
         }
+        failLeases(.failed(error.localizedDescription))
+        reconcile()
+    }
+
+    private func failLeases(_ failure: Failure) {
         let activeLeases = Array(leases.values)
         leases.removeAll()
         for lease in activeLeases {
-            lease.handler(.failure(.failed(error.localizedDescription)))
+            lease.handler(.failure(failure))
         }
-        reconcile()
     }
 }
 

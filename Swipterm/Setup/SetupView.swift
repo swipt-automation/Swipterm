@@ -75,7 +75,11 @@ struct SetupView: View {
                 switch draft.source {
                 case let .distribution(distribution):
                     SetupReleasePicker(
-                        selectedReleaseID: clearingFocus($draft.selectedReleaseID),
+                        selectedReleaseID: clearingFocus(Binding {
+                            selectedRelease?.id
+                        } set: { newValue in
+                            draft.selectedReleaseID = newValue
+                        }),
                         loadState: catalog.loadState,
                         releases: catalog.releases(for: distribution),
                         onRetryCatalog: {
@@ -89,9 +93,14 @@ struct SetupView: View {
                         showFileImporter = true
                     } label: {
                         LabeledContent("Archive") {
-                            Text(draft.customFileURL?.lastPathComponent ?? String(localized: "Choose File…"))
-                                .foregroundStyle(draft.customFileURL == nil ? .secondary : .primary)
-                                .lineLimit(1)
+                            if let customFileURL = draft.customFileURL {
+                                Text(customFileURL.lastPathComponent)
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                            } else {
+                                Text("Choose File…")
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     .foregroundStyle(.primary)
@@ -114,14 +123,18 @@ struct SetupView: View {
                         focusedField = nil
                         showSoftware = true
                     } label: {
-                        LabeledContent("Software", value: softwareSummary)
+                        LabeledContent("Software") {
+                            softwareSummary
+                        }
                     }
                     .foregroundStyle(.primary)
                 } else {
                     NavigationLink {
                         softwareView
                     } label: {
-                        LabeledContent("Software", value: softwareSummary)
+                        LabeledContent("Software") {
+                            softwareSummary
+                        }
                     }
                 }
             }
@@ -199,7 +212,7 @@ struct SetupView: View {
         }
         .fileImporter(
             isPresented: $showFileImporter,
-            allowedContentTypes: Self.supportedArchiveTypes,
+            allowedContentTypes: [.data],
             allowsMultipleSelection: false
         ) { result in
             do {
@@ -320,10 +333,10 @@ struct SetupView: View {
         return url
     }
 
-    private var softwareSummary: String {
+    private var softwareSummary: Text {
         let shell = draft.software.shell!.displayName
         let count = draft.software.developerTools.count + draft.software.agents.count + (draft.ssh.isEnabled ? 1 : 0)
-        return count == 0 ? shell : "\(shell) + \(count)"
+        return count == 0 ? Text(shell) : Text("\(shell) + \(count)")
     }
 
     private var usernameProblem: LocalizedStringResource? {
@@ -413,7 +426,7 @@ struct SetupView: View {
         do {
             try create(.create(ContainerCreation.Request.Creation(
                 source: installSource,
-                containerName: Self.sanitizedContainerName(draft.containerName),
+                containerName: LinuxContainer.sanitizedName(draft.containerName),
                 user: draft.usesRootUser ? "root" : draft.username.isEmpty ? Self.fallbackUsername : draft.username,
                 password: draft.password.isEmpty ? nil : draft.password,
                 software: software
@@ -421,10 +434,6 @@ struct SetupView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
-    }
-
-    static var supportedArchiveTypes: [UTType] {
-        [.gzip, .bz2, .data] + ["tar", "xz", "tgz", "txz", "tbz2"].map { UTType(filenameExtension: $0)! }
     }
 
     static var fallbackUsername: String {
@@ -436,7 +445,7 @@ struct SetupView: View {
     }
 
     private static func isValidUsername(_ name: String) -> Bool {
-        name != "root" && name.wholeMatch(of: /[a-z_][a-z0-9_-]{0,31}/) != nil
+        name.wholeMatch(of: /[a-z_][a-z0-9_-]{0,31}/) != nil
     }
 
     private static func suggestedContainerName(fromArchive fileName: String) -> String {
@@ -447,16 +456,7 @@ struct SetupView: View {
                 break
             }
         }
-        return sanitizedContainerName(name)
-    }
-
-    nonisolated static func sanitizedContainerName(_ raw: String) -> String {
-        let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789-")
-        let cleaned = String(raw.lowercased().map { allowed.contains($0) ? $0 : "-" })
-        let collapsed = cleaned
-            .split(separator: "-", omittingEmptySubsequences: true)
-            .joined(separator: "-")
-        return collapsed.isEmpty ? "linux" : String(collapsed.prefix(63)).trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return LinuxContainer.sanitizedName(name)
     }
 }
 
@@ -468,14 +468,16 @@ private struct SetupReleasePicker: View {
 
     var body: some View {
         if !releases.isEmpty {
-            Picker("Version", selection: Binding {
-                selectedReleaseID ?? (releases.first(where: \.isRecommended) ?? releases[0]).id
-            } set: { newValue in
-                selectedReleaseID = newValue
-            }) {
+            Picker("Version", selection: $selectedReleaseID) {
                 ForEach(releases) { release in
-                    Text(verbatim: release.displayTitle)
-                        .tag(release.id)
+                    Group {
+                        if let localizedTitle = release.localizedTitle {
+                            Text(localizedTitle)
+                        } else {
+                            Text(release.displayTitle)
+                        }
+                    }
+                    .tag(Optional(release.id))
                 }
             }
         } else {

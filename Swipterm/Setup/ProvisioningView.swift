@@ -1,4 +1,3 @@
-import Combine
 import GhosttyTerminal
 import SwiftUI
 
@@ -76,8 +75,8 @@ struct ProvisioningView: View {
     }
 
     private var backgroundColor: Color {
-        if let terminalColor = terminal?.backgroundColor {
-            return Color(terminalColor)
+        if let terminal {
+            return Color(terminal.extras.backgroundColor)
         }
         return Color(uiColor: .systemBackground)
     }
@@ -86,16 +85,14 @@ struct ProvisioningView: View {
 @Observable
 private final class SetupTerminal {
     let state: TerminalViewState
+    let extras: TerminalExtras
     let surfaceView: TerminalSurfaceView.SurfaceView
 
     private(set) var hasVisibleOutput: Bool
-    private(set) var backgroundColor: TerminalColor?
 
     @ObservationIgnored private let console: ConsoleBuffer
     @ObservationIgnored private let session: InMemoryTerminalSession
-    @ObservationIgnored private let extras: TerminalExtras
     @ObservationIgnored private var subscription: UUID?
-    @ObservationIgnored private var cancellables: Set<AnyCancellable> = []
 
     init(creation: ContainerCreation, settings: AppSettings) {
         console = creation.console
@@ -108,25 +105,9 @@ private final class SetupTerminal {
                 }
             }
         )
-        state = TerminalViewState(
-            configSource: .none,
-            theme: TerminalAppearance.theme(settings),
-            terminalConfiguration: TerminalAppearance.fontConfiguration(settings)
-        )
-        state.configuration = TerminalSurfaceOptions(backend: .inMemory(session))
+        state = TerminalAppearance.state(session: session, settings: settings)
         extras = TerminalExtras(state: state)
-
-        let view = TerminalSurfaceView.SurfaceView(frame: .zero)
-        view.controller = state.controller
-        view.configuration = state.configuration
-        view.delegate = extras
-        surfaceView = view
-
-        state.$backgroundColor
-            .sink { [weak self] color in
-                self?.backgroundColor = color
-            }
-            .store(in: &cancellables)
+        surfaceView = TerminalSurfaceView.SurfaceView(state: state, delegate: extras)
     }
 
     func attach() {

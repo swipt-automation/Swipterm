@@ -84,7 +84,7 @@ private struct OpenURLSheet: View {
         NavigationStack(path: $path) {
             Form {
                 Section {
-                    Text(verbatim: url.absoluteString)
+                    Text(url.absoluteString)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)

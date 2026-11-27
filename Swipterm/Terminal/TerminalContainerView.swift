@@ -6,10 +6,6 @@ import UIKit
 struct TerminalContainerView: View {
     let sessionManager: TerminalSessionManager
 
-    private var system: LinuxSystem {
-        sessionManager.services.system
-    }
-
     @Binding var showSettings: Bool
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -19,7 +15,7 @@ struct TerminalContainerView: View {
     @State private var notificationFailure: String?
 
     var body: some View {
-        let isRunning = system.state == .running
+        let isRunning = sessionManager.services.system.state == .running
         TerminalSplitViewRepresentable(
             sessionManager: sessionManager,
             splitState: splitState,
@@ -34,7 +30,11 @@ struct TerminalContainerView: View {
             if isRunning {
                 TerminalKeyboardShortcuts(
                     onNewSession: { sessionManager.addSession() },
-                    onCloseSession: closeActiveSession,
+                    onCloseSession: {
+                        if let id = sessionManager.activeSessionID {
+                            sessionManager.closeSession(id: id)
+                        }
+                    },
                     onPreviousSession: { sessionManager.selectAdjacentSession(offset: -1) },
                     onNextSession: { sessionManager.selectAdjacentSession(offset: 1) },
                     onOpenSettings: { showSettings = true },
@@ -89,7 +89,7 @@ struct TerminalContainerView: View {
         }
         .onChange(of: sessionManager.sessions.isEmpty) { _, isEmpty in
             guard isEmpty else { return }
-            switch system.state {
+            switch sessionManager.services.system.state {
             case .booting, .running, .failed:
                 sessionManager.ensureInitialSession()
             default:
@@ -101,13 +101,8 @@ struct TerminalContainerView: View {
         }
     }
 
-    private func closeActiveSession() {
-        if let id = sessionManager.activeSessionID {
-            sessionManager.closeSession(id: id)
-        }
-    }
-
     private func setupCallbacks(for session: TerminalSession) {
+        let system = sessionManager.services.system
         session.extras.onOpenURL = { urlString, _ in
             guard let url = URL(string: urlString) else { return }
             system.pendingOpenURL = url
@@ -168,8 +163,6 @@ private final class TerminalSplitPresentationState {
     }
 }
 
-/// Host UISplitViewController directly so compact screens use UIKit's native floating
-/// overlay sidebar instead of collapsing to a push stack or hand-rolling a drawer.
 private struct TerminalSplitViewRepresentable: UIViewControllerRepresentable {
     let sessionManager: TerminalSessionManager
     let splitState: TerminalSplitPresentationState
@@ -190,8 +183,6 @@ private struct TerminalSplitViewRepresentable: UIViewControllerRepresentable {
         let splitViewController = UISplitViewController(style: .doubleColumn)
         splitViewController.delegate = context.coordinator
         splitViewController.primaryBackgroundStyle = .sidebar
-        splitViewController.presentsWithGesture = isRunning
-        splitViewController.displayModeButtonVisibility = isRunning ? .always : .never
         splitViewController.preferredDisplayMode = .secondaryOnly
         splitViewController.minimumPrimaryColumnWidth = 260
         splitViewController.preferredPrimaryColumnWidth = 300
@@ -228,13 +219,10 @@ private struct TerminalSplitViewRepresentable: UIViewControllerRepresentable {
         )
 
         coordinator.splitViewController = splitViewController
-        coordinator.primaryHosting = primaryHosting
         coordinator.secondaryHosting = secondaryHosting
 
         splitViewController.setViewController(primaryHosting, for: .primary)
         splitViewController.setViewController(secondaryHosting, for: .secondary)
-
-        applyLayoutBehavior(to: splitViewController, coordinator: coordinator)
         return splitViewController
     }
 
@@ -282,7 +270,6 @@ private struct TerminalSplitViewRepresentable: UIViewControllerRepresentable {
         let splitState: TerminalSplitPresentationState
         var onOpenSettings: () -> Void
         weak var splitViewController: UISplitViewController?
-        weak var primaryHosting: UIViewController?
         weak var secondaryHosting: UIViewController?
         var lastIsCompact: Bool?
 
@@ -320,18 +307,13 @@ private struct TerminalSplitViewRepresentable: UIViewControllerRepresentable {
 
 private struct TerminalDetailView: View {
     let sessionManager: TerminalSessionManager
-
-    private var system: LinuxSystem {
-        sessionManager.services.system
-    }
-
     let splitState: TerminalSplitPresentationState
     let onSetupCallbacks: (TerminalSession) -> Void
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
-        let isRunning = system.state == .running
+        let isRunning = sessionManager.services.system.state == .running
         GeometryReader { column in
             terminalContent
                 .toolbar { toolbar(columnWidth: column.size.width, isRunning: isRunning) }
@@ -389,22 +371,7 @@ private struct TerminalDetailView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Section("New") {
-                            Button {
-                                sessionManager.addSession()
-                            } label: {
-                                Label("New Terminal", systemImage: "plus")
-                            }
-                            ForEach(sessionManager.services.settings.shortcuts) { shortcut in
-                                Button {
-                                    sessionManager.addSession(shortcut: shortcut)
-                                } label: {
-                                    Label {
-                                        Text(verbatim: shortcut.name)
-                                    } icon: {
-                                        Image(systemName: shortcut.symbolName)
-                                    }
-                                }
-                            }
+                            NewSessionMenuItems(sessionManager: sessionManager, onAdd: {})
                         }
                         Section {
                             Button {

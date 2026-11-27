@@ -32,8 +32,6 @@ type captureDevice struct {
 
 const captureDeviceName = "Swipterm Screenshots "
 
-// The first size is the simulator's native resolution. The other sizes are
-// accepted alternatives for the same display class in App Store Connect.
 var devices = []captureDevice{
 	{name: "iphone", deviceType: "iPhone-17-Pro", orientation: "portrait", sizes: []captureSize{{1206, 2622}, {1179, 2556}}},
 	{name: "iphone-large", deviceType: "iPhone-17-Pro-Max", orientation: "portrait", sizes: []captureSize{{1320, 2868}, {1290, 2796}, {1260, 2736}}},
@@ -50,7 +48,6 @@ var devices = []captureDevice{
 	{name: "ipad-9.7", deviceType: "iPad-mini--5th-generation-", orientation: "landscapeLeft", sizes: []captureSize{{2048, 1536}}},
 }
 
-// captureSimulator owns the UDID returned by simctl create and its optional device profile.
 type captureSimulator struct {
 	udid     string
 	profiles string
@@ -73,7 +70,6 @@ type simulatorRuntime struct {
 
 func simulatorCommand(ctx context.Context, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "xcrun", append([]string{"simctl"}, args...)...)
-	// Deliver cancellation through ctx so a terminal interrupt cannot cut off create's UDID or cleanup.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	result, err := cmd.Output()
 	if err != nil {
@@ -173,7 +169,6 @@ func prepareSimulator(ctx context.Context, device captureDevice, directory, sims
 	if err := ctx.Err(); err != nil {
 		return captureSimulator{}, err
 	}
-	// Let create return its UDID so cleanup can delete the device even on cancellation.
 	output, err := simulator.command(context.WithoutCancel(ctx), "create", captureDeviceName+jobName, deviceType, runtime)
 	if err != nil {
 		return captureSimulator{}, err
@@ -205,7 +200,7 @@ func (simulator captureSimulator) boot(ctx context.Context, simslim string) erro
 	if simslim != "" {
 		cmd := exec.CommandContext(ctx, simslim, "on", simulator.udid)
 		if simulator.profiles != "" {
-			// SimSlim runs simctl internally. Give it the same private device type used at creation.
+			// SimSlim runs simctl internally.
 			bin, err := filepath.Abs("internal/cmd/screenshots/simslim-bin")
 			if err != nil {
 				return err
@@ -217,7 +212,6 @@ func (simulator captureSimulator) boot(ctx context.Context, simslim string) erro
 			cmd.Env = append(cmd.Environ(), "SWIPTERM_XCRUN="+xcrun, "SWIPTERM_SIMULATOR_PROFILES="+simulator.profiles,
 				"PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 		}
-		// Stop the nested simctl commands before cleanup deletes the device on cancellation.
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 		if err := runCommand(cmd); err != nil {
@@ -271,7 +265,6 @@ func configureSimulatorPreferences(device captureDevice, dataPath string) error 
 
 func (simulator captureSimulator) remove() error {
 	if simulator.udid != "" {
-		// A failed preparation can leave the device in any state, including Shutdown.
 		_, shutdownErr := simulator.command(context.Background(), "shutdown", simulator.udid)
 		if _, err := simulator.command(context.Background(), "delete", simulator.udid); err != nil {
 			return errors.Join(err, shutdownErr)

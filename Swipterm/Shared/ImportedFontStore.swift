@@ -1,9 +1,10 @@
-import Combine
 import CoreText
 import Foundation
+import Observation
 
-final class ImportedFontStore: ObservableObject {
-    @Published private(set) var fonts: [ImportedFont] = []
+@Observable
+final class ImportedFontStore {
+    private(set) var fonts: [ImportedFont] = []
 
     private let directory = URL.applicationSupportDirectory.appending(path: "Fonts", directoryHint: .isDirectory)
     private var bootstrapTask: Task<Void, Never>?
@@ -105,16 +106,4 @@ nonisolated struct ImportedFont: Identifiable, Hashable, Sendable {
 
     let fileURL: URL
     let familyName: String
-}
-
-nonisolated extension URL {
-    func withSecurityScopedAccess<Result>(_ body: () throws -> Result) rethrows -> Result {
-        let isAccessing = startAccessingSecurityScopedResource()
-        defer {
-            if isAccessing {
-                stopAccessingSecurityScopedResource()
-            }
-        }
-        return try body()
-    }
 }

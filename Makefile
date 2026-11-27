@@ -24,12 +24,10 @@ export_ios:
 	rm -rf build/Swipterm-iOS
 	xcodebuild -exportArchive -archivePath build/Swipterm-iOS.xcarchive -exportOptionsPlist Swipterm/Export.plist -exportPath build/Swipterm-iOS
 
-build_ios_ipa: archive_ios_ipa
-
 archive_ios_ipa:
 	rm -rf build/Swipterm-Sideload.xcarchive build/Payload build/Swipterm.ipa
 	xcodebuild archive -skipMacroValidation -derivedDataPath build/DerivedData $(XCODEBUILD_FLAGS) -scheme Swipterm -configuration Release -destination 'generic/platform=iOS' -archivePath build/Swipterm-Sideload.xcarchive \
-		CODE_SIGNING_ALLOWED=NO SWIFT_ACTIVE_COMPILATION_CONDITIONS='$$(inherited) SIDELOAD' | xcbeautify
+		CODE_SIGNING_ALLOWED=NO SWIPTERM_BUILD_CONDITION=SIDELOAD | xcbeautify
 	mkdir build/Payload
 	cp -R build/Swipterm-Sideload.xcarchive/Products/Applications/Swipterm.app build/Payload/
 	codesign --force --sign - --entitlements Swipterm/Swipterm.entitlements build/Payload/Swipterm.app
@@ -53,4 +51,4 @@ fmt:
 	swiftformat Swipterm
 	go fmt ./...
 
-.PHONY: build_ios build_ios_simulator screenshots_ios release_ios archive_ios upload_ios export_ios build_ios_ipa archive_ios_ipa altstore_icon altstore_source fmt
+.PHONY: build_ios build_ios_simulator screenshots_ios release_ios archive_ios upload_ios export_ios archive_ios_ipa altstore_icon altstore_source fmt

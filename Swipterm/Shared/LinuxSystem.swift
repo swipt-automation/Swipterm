@@ -29,15 +29,7 @@ final class LinuxSystem {
         let process: LinuxProcess
     }
 
-    private enum StartupError: LocalizedError {
-        case halted
-
-        var errorDescription: String? {
-            "The container stopped during initialization."
-        }
-    }
-
-    private static let loginTimeout = Duration.seconds(300)
+    static let loginTimeout = Duration.seconds(300)
     private static let haltReasonTimeout = Duration.seconds(5)
     private static let maxBootReboots = 2
 
@@ -69,7 +61,6 @@ final class LinuxSystem {
     private var isInBackground = false
     private var isSuspended = false
     private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
-    private var lifecycleObservers: [NSObjectProtocol] = []
 
     @ObservationIgnored private let store: ContainerStore
     @ObservationIgnored private let settings: AppSettings
@@ -104,7 +95,6 @@ final class LinuxSystem {
     }
 
     #if SWIPTERM_STORE_SCREENSHOTS && targetEnvironment(simulator)
-        /// Screenshot builds only present the in-memory terminal when Create is pressed.
         func create(_: ContainerCreation.Request) throws -> ContainerCreation? {
             state = .running
             return nil
@@ -113,7 +103,7 @@ final class LinuxSystem {
         func bootstrap() {
             guard !bootstrapped else { return }
             bootstrapped = true
-            requestLocalNetworkAuthorizationIfNeeded()
+            URLSession.shared.dataTask(with: URL(string: "https://captive.apple.com")!) { _, _, _ in }.resume()
 
             let generation = beginOperation()
             activeTask = Task {
@@ -494,7 +484,7 @@ final class LinuxSystem {
             }
             var halted = false
             do {
-                try await bootedRuntime.waitReady(.login, timeout: Self.loginTimeout)
+                try await bootedRuntime.waitReady(timeout: Self.loginTimeout)
             } catch let error as LinuxError where error == .ESRCH {
                 halted = true
                 await waitForBootHalt(boot)
@@ -503,7 +493,7 @@ final class LinuxSystem {
             if !halted, bootHalt == nil {
                 return
             }
-            guard bootHalt == .reboot, reboots < Self.maxBootReboots else { throw StartupError.halted }
+            guard bootHalt == .reboot, reboots < Self.maxBootReboots else { throw ContainerError.halted }
             reboots += 1
             await shutDownDetachedRuntime()
             guard self.generation == generation else { throw CancellationError() }
@@ -587,23 +577,21 @@ final class LinuxSystem {
 
     private func observeApplicationLifecycle() {
         let center = NotificationCenter.default
-        lifecycleObservers = [
-            center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
-                MainActor.assumeIsolated {
-                    self.handleDidEnterBackground()
-                }
-            },
-            center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { _ in
-                MainActor.assumeIsolated {
-                    self.handleWillEnterForeground()
-                }
-            },
-            center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
-                MainActor.assumeIsolated {
-                    self.location.reconcile()
-                }
-            },
-        ]
+        center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated {
+                self.handleDidEnterBackground()
+            }
+        }
+        center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated {
+                self.handleWillEnterForeground()
+            }
+        }
+        center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated {
+                self.location.reconcile()
+            }
+        }
         location.onBackgroundKeepAliveChange = {
             if self.location.isKeepingBackgroundAlive {
                 if self.isSuspended {
@@ -657,9 +645,5 @@ final class LinuxSystem {
         let id = backgroundTaskID
         backgroundTaskID = .invalid
         UIApplication.shared.endBackgroundTask(id)
-    }
-
-    private func requestLocalNetworkAuthorizationIfNeeded() {
-        URLSession.shared.dataTask(with: URL(string: "https://captive.apple.com")!) { _, _, _ in }.resume()
     }
 }

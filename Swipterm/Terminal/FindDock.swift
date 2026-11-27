@@ -144,7 +144,7 @@ private struct FindStatus: View {
 
     var body: some View {
         if let text {
-            Text(verbatim: text)
+            text
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -154,13 +154,16 @@ private struct FindStatus: View {
         }
     }
 
-    private var text: String? {
+    private var text: Text? {
         if search.showsNoResults {
-            return String(localized: "No Results")
+            return Text("No Results")
         }
         guard let total = search.total, total > 0 else { return nil }
-        guard let selected = search.selected else { return "\(total)" }
-        return "\(selected + 1)/\(total)"
+        guard let selected = search.selected else { return Text(total, format: .number) }
+        return Text(
+            "\(selected + 1, format: .number)/\(total, format: .number)",
+            comment: "Find bar match position: the first value is the selected match, the second is the number of matches"
+        )
     }
 }
 

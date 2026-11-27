@@ -1,6 +1,5 @@
 import Foundation
 import SwiptermKit
-import UIKit
 
 nonisolated struct ClipboardDevice: LinuxCharacterDevice {
     let clipboard: HostClipboard
@@ -8,7 +7,7 @@ nonisolated struct ClipboardDevice: LinuxCharacterDevice {
     func open(access: LinuxFileAccess) throws -> any LinuxCharacterDeviceFile {
         let initialData = switch access {
         case .readOnly, .readWrite:
-            Data((UIPasteboard.general.string ?? "").utf8)
+            try clipboard.read(mime: "text/plain;charset=utf-8") ?? Data()
         case .writeOnly:
             Data()
         }

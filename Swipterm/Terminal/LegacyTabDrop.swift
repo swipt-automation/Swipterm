@@ -34,13 +34,9 @@ struct LegacyTabDrop: DropDelegate {
         let receive: @MainActor @Sendable (SessionDrag) -> Void = { item in
             dragged.insert(item.id)
             pending -= 1
-            guard pending == 0, !dragged.contains(order[target]),
-                  let source = order.firstIndex(where: dragged.contains)
-            else { return }
-            let insertion = source < target ? target + 1 : target
-            let nextID = order[insertion...].first { !dragged.contains($0) }
+            guard pending == 0 else { return }
             withAnimation {
-                sessionManager.moveSessions(order.filter(dragged.contains), before: nextID)
+                _ = sessionManager.moveSessions(dragged, onto: order[target])
             }
         }
 

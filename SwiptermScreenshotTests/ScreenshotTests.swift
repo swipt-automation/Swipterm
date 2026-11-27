@@ -154,7 +154,6 @@ final class ScreenshotTests: XCTestCase {
         UIGraphicsPushContext(context)
         if extendEdges {
             // XCTest omits the left and bottom edge pixels on the Duo inner display.
-            // Extend those edges by one pixel without scaling the captured content.
             let pixel = 1 / image.scale
             image.draw(at: CGPoint(x: 0, y: pixel))
             image.draw(at: CGPoint(x: pixel, y: pixel))

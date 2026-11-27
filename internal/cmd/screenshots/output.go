@@ -87,8 +87,6 @@ func (job captureJob) path(locale, screen string) string {
 	return filepath.Join(job.output, locale, job.device.name, screen+".png")
 }
 
-// Regional aliases share the same app language and keyboard. Restore a missing alias
-// from a complete sibling before scheduling another simulator capture.
 func (job captureJob) reuseScreenshot(language, screen string) (bool, error) {
 	var reusable []byte
 	var missing []string
@@ -103,7 +101,6 @@ func (job captureJob) reuseScreenshot(language, screen string) (bool, error) {
 		} else if reusable == nil {
 			reusable = data
 		} else if !bytes.Equal(data, reusable) {
-			// An interrupted export can leave two valid generations for one language.
 			return false, nil
 		}
 	}
@@ -136,7 +133,6 @@ func validatePNG(data []byte, device captureDevice) error {
 }
 
 func pngHasAlpha(data []byte) bool {
-	// Check the IHDR color type and the optional tRNS chunk after validating the PNG.
 	if colorType := data[25]; colorType == 4 || colorType == 6 {
 		return true
 	}

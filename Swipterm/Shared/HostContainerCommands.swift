@@ -2,44 +2,15 @@ import Foundation
 import SwiptermKit
 
 nonisolated extension HostCommands {
-    static let containerUsage = """
-    usage: swipterm container <command>
-
-    commands:
-      list                                List containers
-      create <name> [options]             Create a container
-      check <container>                   Check that a container can start on its own
-      mount [--rw] <container> [<dir>]    Mount the disk of another container (default: /mnt/<name>)
-      umount <container|dir>              Unmount the disk of another container
-      chroot <container> [command...]     Run a command or a shell in another container
-      delete <container>                  Delete another container
-
-    """
-
-    private static let createUsage = """
-    usage: swipterm container create <name> [options]
-
-    sources:
-      --blank                  An empty disk to install a system on (default)
-      --distribution <id>      A distribution: \(LinuxDistribution.allCases.map(\.rawValue).joined(separator: ", "))
-      --version <version>      Version of the distribution (default: recommended)
-      --url <url>              A root file system archive
-
-    options:
-      --user <name>            Default user (default: root)
-      --password <password>    Password of the default user
-
-    software:
-      --shell <shell>          Login shell of a distribution: \(LoginShell.allCases.map(\.rawValue).joined(separator: ", ")) (default: bash)
-      --tool <tool>            Install a developer tool (repeatable): \(DeveloperTool.allCases.map(\.rawValue).joined(separator: ", "))
-      --agent <agent>          Install a coding agent (repeatable): \(CodingAgent.allCases.map(\.executableName).joined(separator: ", "))
-
-    ssh:
-      --ssh-port <port>        Run an SSH server on a port from \(SSHServer.ports.lowerBound) to \(SSHServer.ports.upperBound) (default: \(SSHServer.defaultPort))
-      --ssh-auth <method>      \(sshAuthentications.map(\.name).joined(separator: ", ")) (default: password, or both with --ssh-key)
-      --ssh-key <file>         Public key file to authorize (repeatable)
-
-    """
+    private static let containerCommands: [(name: String, arguments: String, description: String)] = [
+        ("list", "", "List containers"),
+        ("create", "<name> [options]", "Create a container"),
+        ("check", "<container>", "Check that a container can start on its own"),
+        ("mount", "[--rw] <container> [<dir>]", "Mount the disk of another container (default: /mnt/<name>)"),
+        ("umount", "<container|dir>", "Unmount the disk of another container"),
+        ("chroot", "<container> [command...]", "Run a command or a shell in another container"),
+        ("delete", "<container>", "Delete another container"),
+    ]
 
     private static let sshAuthentications: [(name: String, value: SSHAuthentication)] = [
         ("password", .password),
@@ -47,15 +18,40 @@ nonisolated extension HostCommands {
         ("both", .passwordAndPublicKey),
     ]
 
-    private static let containerPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    private static let createOptions: [(title: String, options: [(flag: String, value: String, description: String, details: String)])] = [
+        ("sources", [
+            ("--blank", "", "An empty disk to install a system on", " (default)"),
+            ("--distribution", "<id>", "A distribution", ": \(LinuxDistribution.allCases.map(\.rawValue).joined(separator: ", "))"),
+            ("--version", "<version>", "Version of the distribution", " (default: recommended)"),
+            ("--url", "<url>", "A root file system archive", ""),
+        ]),
+        ("options", [
+            ("--user", "<name>", "Default user", " (default: root)"),
+            ("--password", "<password>", "Password of the default user", ""),
+        ]),
+        ("software", [
+            ("--shell", "<shell>", "Login shell of a distribution", ": \(LoginShell.allCases.map(\.rawValue).joined(separator: ", ")) (default: bash)"),
+            ("--tool", "<tool>", "Install a developer tool", " (repeatable): \(DeveloperTool.allCases.map(\.rawValue).joined(separator: ", "))"),
+            ("--agent", "<agent>", "Install a coding agent", " (repeatable): \(CodingAgent.allCases.map(\.executableName).joined(separator: ", "))"),
+        ]),
+        ("ssh", [
+            ("--ssh-port", "<port>", "Run an SSH server on a port", " from \(SSHServer.ports.lowerBound) to \(SSHServer.ports.upperBound) (default: \(SSHServer.defaultPort))"),
+            ("--ssh-auth", "<method>", "SSH authentication method", ": \(sshAuthentications.map(\.name).joined(separator: ", ")) (default: password, or both with --ssh-key)"),
+            ("--ssh-key", "<file>", "Public key file to authorize", " (repeatable)"),
+        ]),
+    ]
 
-    private struct Failure: LocalizedError {
-        let message: String
-        var status: Int32 = 1
+    static let containerUsage = usage("swipterm container <command>", [
+        ("commands", containerCommands.map { (containerCommandSyntax($0.name), $0.description) }),
+    ])
 
-        var errorDescription: String? {
-            message
-        }
+    private static let createUsage = usage("swipterm container \(containerCommandSyntax("create"))", createOptions.map { section in
+        (section.title, section.options.map { ($0.value.isEmpty ? $0.flag : "\($0.flag) \($0.value)", $0.description + $0.details) })
+    })
+
+    private static func containerCommandSyntax(_ name: String) -> String {
+        let command = containerCommands.first { $0.name == name }!
+        return command.arguments.isEmpty ? name : "\(name) \(command.arguments)"
     }
 
     func handleContainer(_ invocation: HostCommandInvocation, arguments: ArraySlice<String>) async throws -> Int32 {
@@ -85,7 +81,7 @@ nonisolated extension HostCommands {
             case "chroot":
                 return try await enterContainer(invocation, arguments: rest)
             case "delete", "rm":
-                let container = try await other(Self.single(rest, usage: "usage: swipterm container delete <container>"))
+                let container = try await other(Self.single(rest, command: "delete"))
                 try await MainActor.run { try system.delete(container) }
                 return 0
             default:
@@ -103,18 +99,9 @@ nonisolated extension HostCommands {
     }
 
     static func containerCompletionCandidates(for words: [String], containers: [String]) -> [(value: String, description: String)] {
-        let commands: [(value: String, description: String)] = [
-            ("list", "List containers"),
-            ("create", "Create a container"),
-            ("check", "Check that a container can start on its own"),
-            ("mount", "Mount the disk of another container"),
-            ("umount", "Unmount the disk of another container"),
-            ("chroot", "Run a command or a shell in another container"),
-            ("delete", "Delete another container"),
-        ]
         let current = words[words.count - 1]
         if words.count == 1 {
-            return commands.filter { $0.value.hasPrefix(current) }
+            return containerCommands.map { ($0.name, $0.description) }.filter { $0.0.hasPrefix(current) }
         }
         let positional = words.dropFirst().dropLast().filter { !$0.hasPrefix("-") }
         switch words[0] {
@@ -126,7 +113,7 @@ nonisolated extension HostCommands {
                 case "--shell":
                     LoginShell.allCases.map { ($0.rawValue, $0.displayName) }
                 case "--tool":
-                    DeveloperTool.allCases.map { ($0.rawValue, $0.displayName) }
+                    DeveloperTool.allCases.map { ($0.rawValue, String(localized: $0.displayName)) }
                 case "--agent":
                     CodingAgent.allCases.map { ($0.executableName, $0.displayName) }
                 case "--ssh-auth":
@@ -136,20 +123,7 @@ nonisolated extension HostCommands {
                 }
                 return candidates.filter { $0.value.hasPrefix(current) }
             }
-            return [
-                ("--blank", "An empty disk to install a system on"),
-                ("--distribution", "A distribution"),
-                ("--version", "Version of the distribution"),
-                ("--url", "A root file system archive"),
-                ("--user", "Default user"),
-                ("--password", "Password of the default user"),
-                ("--shell", "Login shell"),
-                ("--tool", "Install a developer tool"),
-                ("--agent", "Install a coding agent"),
-                ("--ssh-port", "Run an SSH server on a port"),
-                ("--ssh-auth", "SSH authentication method"),
-                ("--ssh-key", "Public key file to authorize"),
-            ].filter { $0.0.hasPrefix(current) }
+            return createOptions.flatMap(\.options).map { ($0.flag, $0.description) }.filter { $0.0.hasPrefix(current) }
         case "mount" where current.hasPrefix("-"):
             return [("--rw", "Mount read-write")].filter { $0.0.hasPrefix(current) }
         case "check", "mount", "umount", "unmount", "chroot", "delete", "rm":
@@ -265,7 +239,7 @@ nonisolated extension HostCommands {
             }
             index += 1
         }
-        guard let name, name == SetupView.sanitizedContainerName(name) else {
+        guard let name, name == LinuxContainer.sanitizedName(name) else {
             throw Failure(
                 message: "the name must consist of lowercase letters, digits and hyphens\n\(Self.createUsage)",
                 status: 2
@@ -406,7 +380,7 @@ nonisolated extension HostCommands {
     }
 
     private func checkContainer(_ invocation: HostCommandInvocation, arguments: [String]) async throws -> Int32 {
-        var container = try await resolve(Self.single(arguments, usage: "usage: swipterm container check <container>"))
+        var container = try await resolve(Self.single(arguments, command: "check"))
         let readiness = try await store.readiness(of: container)
         let user = container.metadata.defaultUser
         let lines = [
@@ -426,7 +400,7 @@ nonisolated extension HostCommands {
     }
 
     private func mountContainer(_ invocation: HostCommandInvocation, arguments: [String]) async throws {
-        let usage = "usage: swipterm container mount [--rw] <container> [<dir>]"
+        let usage = "usage: swipterm container \(Self.containerCommandSyntax("mount"))"
         var readOnly = true
         var positional: [String] = []
         for argument in arguments {
@@ -454,7 +428,7 @@ nonisolated extension HostCommands {
     }
 
     private func unmountContainer(_ invocation: HostCommandInvocation, arguments: [String]) async throws {
-        let reference = try Self.single(arguments, usage: "usage: swipterm container umount <container|dir>")
+        let reference = try Self.single(arguments, command: "umount")
         var container = await store.container(mountedAt: Self.absolutePath(reference, in: invocation.workingDirectory))
         if container == nil {
             container = try await other(reference)
@@ -464,7 +438,7 @@ nonisolated extension HostCommands {
 
     private func enterContainer(_ invocation: HostCommandInvocation, arguments: [String]) async throws -> Int32 {
         guard let reference = arguments.first, !reference.hasPrefix("-") else {
-            throw Failure(message: "usage: swipterm container chroot <container> [command...]", status: 2)
+            throw Failure(message: "usage: swipterm container \(Self.containerCommandSyntax("chroot"))", status: 2)
         }
         var command = Array(arguments.dropFirst())
         if command.first == "--" {
@@ -480,7 +454,7 @@ nonisolated extension HostCommands {
                 var environment = invocation.environment.filter { key, _ in
                     ["TERM", "COLORTERM", "LANG", "LANGUAGE", "TZ"].contains(key) || key.hasPrefix("LC_")
                 }
-                environment["PATH"] = Self.containerPath
+                environment["PATH"] = ContainerProvisioner.path
                 environment["HOME"] = "/root"
                 process = try await disk.spawn(
                     LinuxProcess.Configuration(
@@ -533,9 +507,9 @@ nonisolated extension HostCommands {
         return container
     }
 
-    private static func single(_ arguments: [String], usage: String) throws -> String {
+    private static func single(_ arguments: [String], command: String) throws -> String {
         guard arguments.count == 1, !arguments[0].hasPrefix("-") else {
-            throw Failure(message: usage, status: 2)
+            throw Failure(message: "usage: swipterm container \(containerCommandSyntax(command))", status: 2)
         }
         return arguments[0]
     }

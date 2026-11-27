@@ -22,7 +22,7 @@ nonisolated enum LoginShell: String, Codable, CaseIterable, Identifiable, Sendab
     }
 }
 
-nonisolated enum SSHAuthentication: String, Codable, CaseIterable, Sendable {
+nonisolated enum SSHAuthentication: String, Codable, Sendable {
     case password
     case publicKey
     case passwordAndPublicKey
@@ -58,9 +58,9 @@ nonisolated enum DeveloperTool: String, Codable, CaseIterable, Sendable {
     case python
     case rust
 
-    var displayName: String {
+    var displayName: LocalizedStringResource {
         switch self {
-        case .buildEssentials: String(localized: "Build Essentials")
+        case .buildEssentials: "Build Essentials"
         case .docker: "Docker"
         case .git: "Git"
         case .gnupg: "GnuPG"

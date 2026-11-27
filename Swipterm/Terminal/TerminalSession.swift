@@ -3,8 +3,8 @@ import Foundation
 import GhosttyTerminal
 import GhosttyTheme
 import Observation
-import SwiftUI
 import SwiptermKit
+import UIKit
 import UserNotifications
 
 @Observable
@@ -27,12 +27,10 @@ final class TerminalSession: Identifiable {
     let state: TerminalViewState
     let extras: TerminalExtras
     let search: TerminalSearch
-    /// Retain a single UITerminalView per session so Ghostty preserves grid and scrollback across layout detaches.
     let surfaceView: TerminalSurfaceView.SurfaceView
 
     private(set) var phase: Phase = .starting
     private(set) var hasVisibleOutput = false
-    private(set) var backgroundColor: TerminalColor?
 
     @ObservationIgnored var onCleanExit: (() -> Void)?
 
@@ -61,19 +59,11 @@ final class TerminalSession: Identifiable {
         session.setOutputBacklogHandler(highWater: 4 << 20, lowWater: 1 << 20) { isBacklogged in
             relay.setOutputBacklogged(isBacklogged)
         }
-        state = TerminalViewState(
-            configSource: .none,
-            theme: TerminalAppearance.theme(services.settings),
-            terminalConfiguration: TerminalAppearance.fontConfiguration(services.settings)
-        )
-        state.configuration = TerminalSurfaceOptions(backend: .inMemory(session))
+        state = TerminalAppearance.state(session: session, settings: services.settings)
         extras = TerminalExtras(state: state)
         search = TerminalSearch(terminal: state)
 
-        let view = TerminalSurfaceView.SurfaceView(frame: .zero)
-        view.controller = state.controller
-        view.configuration = state.configuration
-        view.delegate = extras
+        let view = TerminalSurfaceView.SurfaceView(state: state, delegate: extras)
         view.inMemorySession = session
         view.pasteStaging = services.pasteStaging
         view.readOutputActivity = {
@@ -84,11 +74,6 @@ final class TerminalSession: Identifiable {
         extras.onDesktopNotification = { [weak self] title, body in
             self?.postSystemNotification(title: title, body: body)
         }
-        state.$backgroundColor
-            .sink { [weak self] color in
-                self?.backgroundColor = color
-            }
-            .store(in: &cancellables)
         NotificationCenter.default.publisher(for: AppSettings.terminalAppearanceDidChange)
             .sink { [weak self] _ in self?.applySettings() }
             .store(in: &cancellables)
@@ -97,10 +82,6 @@ final class TerminalSession: Identifiable {
     var title: String {
         let trimmed = extras.title.trimmingCharacters(in: .whitespaces)
         return trimmed.isEmpty ? shortcut?.name ?? services.containers.activeContainer?.metadata.name ?? "" : trimmed
-    }
-
-    var workingDirectory: String {
-        extras.workingDirectory
     }
 
     func beginStart() {
@@ -259,6 +240,16 @@ final class TerminalSession: Identifiable {
 }
 
 enum TerminalAppearance {
+    static func state(session: InMemoryTerminalSession, settings: AppSettings) -> TerminalViewState {
+        let state = TerminalViewState(
+            configSource: .none,
+            theme: theme(settings),
+            terminalConfiguration: fontConfiguration(settings)
+        )
+        state.configuration = TerminalSurfaceOptions(backend: .inMemory(session))
+        return state
+    }
+
     static func theme(_ settings: AppSettings) -> TerminalTheme {
         TerminalTheme(
             light: configuration(themeName: settings.lightTheme, customText: settings.lightConfig),
@@ -288,14 +279,13 @@ enum TerminalAppearance {
         #else
             let size = Float(settings.fontSize)
         #endif
-        let family = settings.fontFollowTheme ? "" : settings.fontFamily
+        let family = settings.fontFamily
         return TerminalConfiguration { builder in
             if !family.isEmpty {
                 builder.withFontFamily(family)
             }
             builder.withFontSize(size)
             #if SWIPTERM_STORE_SCREENSHOTS && targetEnvironment(simulator)
-                // Capture the focused cursor in its visible phase.
                 builder.withCursorStyle(.block)
                 builder.withCursorStyleBlink(false)
             #endif

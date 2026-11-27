@@ -58,8 +58,6 @@ final class TerminalSearch {
         }
     }
 
-    // MARK: - Presentation
-
     func present(needle: String? = nil) {
         if !isPresented {
             isPresented = true
@@ -98,13 +96,11 @@ final class TerminalSearch {
         terminal.performBindingAction("end_search")
     }
 
-    // MARK: - Query
-
     func edit(_ text: String) {
         let text = Self.normalized(text)
         guard text != query else { return }
         query = text
-        switch pacer.edited(text, at: Self.now) {
+        switch pacer.edited(text, at: ProcessInfo.processInfo.systemUptime) {
         case .search:
             submit(selecting: .older)
         case .wait:
@@ -147,7 +143,7 @@ final class TerminalSearch {
         isSurfaceActive = isActive
         guard isPresented, !needle.isEmpty else { return }
         if isActive {
-            startSearch()
+            terminal.performBindingAction("search:\(needle)")
         } else {
             clearResults()
             terminal.performBindingAction("search:")
@@ -173,12 +169,8 @@ final class TerminalSearch {
         clearResults()
         pendingSelection = needle.isEmpty ? nil : direction
         if isSurfaceActive {
-            startSearch()
+            terminal.performBindingAction("search:\(needle)")
         }
-    }
-
-    private func startSearch() {
-        terminal.performBindingAction("search:\(needle)")
     }
 
     private func clearResults() {
@@ -197,10 +189,6 @@ final class TerminalSearch {
         }
     }
 
-    private static var now: TimeInterval {
-        ProcessInfo.processInfo.systemUptime
-    }
-
     private static func normalized(_ text: String) -> String {
         let line = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
         let printable = line.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) }
@@ -215,15 +203,11 @@ final class TerminalSearch {
         (0x41 ... 0x5A).contains(byte) ? byte + 0x20 : byte
     }
 
-    // MARK: - Selecting the first match
-
     private func requestPendingSelection() {
         guard let direction = pendingSelection, hasMatches, selected == nil else { return }
         pendingSelection = nil
         terminal.performBindingAction(direction.bindingAction)
     }
-
-    // MARK: - What the surface reports
 
     private func surfaceDidReport(_ event: TerminalSearchEvent) {
         switch event {
@@ -384,18 +368,24 @@ struct FindQueryPacer {
     }
 }
 
-struct FindHistoryList: Equatable {
-    static let capacity = 10
-    static let minimumLength = 3
+@Observable
+final class FindHistory {
+    static let shared = FindHistory()
+
+    private static let capacity = 10
+    private static let minimumLength = 3
 
     private(set) var queries: [String] = []
-    private var canCoalesce = false
+    @ObservationIgnored private var canCoalesce = false
 
-    mutating func add(_ query: String) {
+    private init() {}
+
+    func add(_ query: String) {
         guard query.count >= Self.minimumLength else {
-            fence()
+            canCoalesce = false
             return
         }
+        var queries = self.queries
         if canCoalesce, let last = queries.first {
             if query.hasPrefix(last) {
                 queries.removeFirst()
@@ -409,43 +399,19 @@ struct FindHistoryList: Equatable {
             queries.removeLast(queries.count - Self.capacity)
         }
         canCoalesce = true
-    }
-
-    mutating func fence() {
-        canCoalesce = false
-    }
-
-    mutating func removeAll() {
-        queries = []
-        canCoalesce = false
-    }
-}
-
-@Observable
-final class FindHistory {
-    static let shared = FindHistory()
-
-    private(set) var queries: [String] = []
-    @ObservationIgnored private var list = FindHistoryList()
-
-    private init() {}
-
-    func add(_ query: String) {
-        list.add(query)
-        publish()
+        if queries != self.queries {
+            self.queries = queries
+        }
     }
 
     func fence() {
-        list.fence()
+        canCoalesce = false
     }
 
     func removeAll() {
-        list.removeAll()
-        publish()
-    }
-
-    private func publish() {
-        guard queries != list.queries else { return }
-        queries = list.queries
+        canCoalesce = false
+        if !queries.isEmpty {
+            queries = []
+        }
     }
 }

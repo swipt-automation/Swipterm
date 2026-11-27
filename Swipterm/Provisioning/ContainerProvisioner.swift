@@ -9,12 +9,14 @@ nonisolated enum ContainerProvisioner {
         let software: ContainerSoftware
     }
 
+    static let path = "/run/wrappers/bin:/run/current-system/sw/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
     static func configuration(terminal: LinuxTerminal, request: Request, release: OSRelease?) -> LinuxProcess.Configuration {
         let distribution = release?.distribution
         let software = request.software
         let developerTools = software.installedDeveloperTools
         var environment = [
-            "PATH": "/run/wrappers/bin:/run/current-system/sw/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            "PATH": path,
             "HOME": "/root",
             "TERM": "xterm-256color",
             "COLORTERM": "truecolor",
@@ -23,12 +25,15 @@ nonisolated enum ContainerProvisioner {
             "SWIPTERM_DISTRIBUTION": distribution?.rawValue ?? "",
             "SWIPTERM_VERSION_ID": release?.versionID ?? "",
             "SWIPTERM_USER": request.user,
-            "SWIPTERM_HOSTNAME": request.hostname,
+            "SWIPTERM_KERNEL_STAGING": KernelBootstrap.stagingDirectory,
             "SWIPTERM_TOOLS": DeveloperTool.allCases.filter(developerTools.contains).map(\.rawValue).joined(separator: " "),
             "SWIPTERM_AGENTS": CodingAgent.allCases.filter(software.agents.contains).map(\.rawValue).joined(separator: " "),
         ]
         for (id, title) in stepTitles {
             environment["SWIPTERM_STEP_\(id)"] = title
+        }
+        for (id, text) in messages {
+            environment["SWIPTERM_TEXT_\(id)"] = text
         }
         if let password = request.password, !password.isEmpty {
             environment["SWIPTERM_PASSWORD"] = password
@@ -79,6 +84,20 @@ nonisolated enum ContainerProvisioner {
         ]
     }
 
+    private static var messages: KeyValuePairs<String, String> {
+        [
+            "error": String(localized: "error:"),
+            "warning": String(localized: "warning:"),
+            "latest_version": String(localized: "Could not resolve the latest version of \("%s")."),
+            "template_user": String(localized: "Could not remove the template user \("%s")."),
+            "not_installed": String(localized: "\("%s") is not installed."),
+            "system_account": String(localized: "\("%s") is a system account. Choose another username."),
+            "rejected_configuration": String(localized: "\("%s") rejected the generated configuration."),
+            "invalid_username": String(localized: "Invalid username: \("%s")"),
+            "unrecognized_distribution": String(localized: "The distribution is not recognized; skipping the selected software."),
+        ]
+    }
+
     private static let setupScript = #"""
     set -eu
     umask 022
@@ -116,12 +135,16 @@ nonisolated enum ContainerProvisioner {
     }
 
     fail() {
-        printf '\033[1;31merror:\033[0m %s\n' "$*" >&2
+        eval "format=\$SWIPTERM_TEXT_$1"
+        shift
+        printf "\033[1;31m%s\033[0m $format\n" "$SWIPTERM_TEXT_error" "$@" >&2
         exit 1
     }
 
     warn() {
-        printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2
+        eval "format=\$SWIPTERM_TEXT_$1"
+        shift
+        printf "\033[1;33m%s\033[0m $format\n" "$SWIPTERM_TEXT_warning" "$@" >&2
     }
 
     have() {
@@ -275,7 +298,7 @@ nonisolated enum ContainerProvisioner {
     }
 
     reconcile_kernel() {
-        staged=/var/lib/swipterm/kernel
+        staged=$SWIPTERM_KERNEL_STAGING
         if [ ! -d "$staged" ]; then
             index_modules
             return 0
@@ -589,7 +612,7 @@ nonisolated enum ContainerProvisioner {
         step pnpm
         fetch "$npm_registry/@pnpm/exe/latest" > "$work/pnpm.json"
         version=$(json_value version < "$work/pnpm.json")
-        [ -n "$version" ] || fail "Could not resolve the latest version of pnpm."
+        [ -n "$version" ] || fail latest_version pnpm
         npm_tarball "@pnpm/exe.linux-arm64$musl" "$version" "$work/pnpm.tgz"
         mkdir "$work/pnpm"
         tar -xzf "$work/pnpm.tgz" -C "$work/pnpm"
@@ -606,7 +629,7 @@ nonisolated enum ContainerProvisioner {
         step bun
         fetch "$npm_registry/bun/latest" > "$work/bun.json"
         version=$(json_value version < "$work/bun.json")
-        [ -n "$version" ] || fail "Could not resolve the latest version of Bun."
+        [ -n "$version" ] || fail latest_version Bun
         npm_tarball "@oven/bun-linux-aarch64$musl" "$version" "$work/bun.tgz"
         mkdir "$work/bun"
         tar -xzf "$work/bun.tgz" -C "$work/bun"
@@ -627,7 +650,7 @@ nonisolated enum ContainerProvisioner {
         id "$template" >/dev/null 2>&1 || return 0
         userdel -r "$template" || true
         if id "$template" >/dev/null 2>&1; then
-            fail "Could not remove the template user $template."
+            fail template_user "$template"
         fi
     }
 
@@ -657,7 +680,7 @@ nonisolated enum ContainerProvisioner {
                 return
             fi
         done
-        fail "$name is not installed."
+        fail not_installed "$name"
     }
 
     login_shell() {
@@ -679,7 +702,7 @@ nonisolated enum ContainerProvisioner {
         if id "$user" >/dev/null 2>&1; then
             uid=$(id -u "$user")
             if [ "$uid" -lt 1000 ] || [ "$uid" -ge 60000 ]; then
-                fail "$user is a system account. Choose another username."
+                fail system_account "$user"
             fi
         else
             if have useradd; then
@@ -724,7 +747,7 @@ nonisolated enum ContainerProvisioner {
         chmod 0440 /etc/sudoers.d/swipterm
         if ! visudo -cf "$sudoers"; then
             rm -f /etc/sudoers.d/swipterm
-            fail "sudo rejected the generated configuration."
+            fail rejected_configuration sudo
         fi
     }
 
@@ -738,7 +761,7 @@ nonisolated enum ContainerProvisioner {
         chmod 0400 /etc/doas.d/swipterm.conf
         if ! doas -C /etc/doas.d/swipterm.conf; then
             rm -f /etc/doas.d/swipterm.conf
-            fail "doas rejected the generated configuration."
+            fail rejected_configuration doas
         fi
     }
 
@@ -913,7 +936,7 @@ nonisolated enum ContainerProvisioner {
             chown -R "$user:$user_group" "$user_home/.ssh"
         fi
         if ! "$sshd_bin" -t; then
-            fail "sshd rejected the generated configuration."
+            fail rejected_configuration sshd
         fi
         case "$SWIPTERM_DISTRIBUTION:$SWIPTERM_VERSION_ID" in
         ubuntu:2[0-3].* | debian:* | kali:*)
@@ -1047,7 +1070,7 @@ nonisolated enum ContainerProvisioner {
         step codex
         fetch "$npm_registry/@openai/codex/latest" > "$work/codex.json"
         version=$(json_value version < "$work/codex.json")
-        [ -n "$version" ] || fail "Could not resolve the latest version of Codex."
+        [ -n "$version" ] || fail latest_version Codex
         npm_tarball @openai/codex "$version-linux-arm64" "$work/codex.tgz"
         standalone=$user_home/.codex/packages/standalone
         release=$standalone/releases/$version-aarch64-unknown-linux-musl
@@ -1096,12 +1119,12 @@ nonisolated enum ContainerProvisioner {
 
     case "$user" in
     root) ;;
-    "" | -* | *[!A-Za-z0-9._-]*) fail "Invalid username: $user" ;;
+    "" | -* | *[!A-Za-z0-9._-]*) fail invalid_username "$user" ;;
     esac
 
     if [ -z "$SWIPTERM_DISTRIBUTION" ] &&
         [ -n "${SWIPTERM_SHELL:-}${SWIPTERM_SSH_PORT:-}$SWIPTERM_TOOLS$SWIPTERM_AGENTS" ]; then
-        warn "The distribution is not recognized; skipping the selected software."
+        warn unrecognized_distribution
         SWIPTERM_SHELL='' SWIPTERM_SSH_PORT='' SWIPTERM_TOOLS='' SWIPTERM_AGENTS=''
     fi
     tools=" $SWIPTERM_TOOLS "

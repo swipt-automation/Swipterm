@@ -55,7 +55,9 @@ struct ReorderableSessionStack<Content: View>: View {
                     content(session)
                         .draggable(SessionDrag(id: session.id))
                         .dropDestination(for: SessionDrag.self) { items, _ in
-                            drop(items, onto: session.id)
+                            withAnimation {
+                                sessionManager.moveSessions(Set(items.map(\.id)), onto: session.id)
+                            }
                         }
                 }
             }
@@ -69,19 +71,6 @@ struct ReorderableSessionStack<Content: View>: View {
         } else {
             LazyVStack(spacing: spacing, content: items)
         }
-    }
-
-    private func drop(_ items: [SessionDrag], onto targetID: UUID) -> Bool {
-        let sessions = sessionManager.sessions
-        guard let first = items.first,
-              let source = sessions.firstIndex(where: { $0.id == first.id }),
-              let target = sessions.firstIndex(where: { $0.id == targetID })
-        else { return false }
-        let insertion = source < target ? target + 1 : target
-        withAnimation {
-            sessionManager.moveSessions(items.map(\.id), before: sessions.dropFirst(insertion).first?.id)
-        }
-        return true
     }
 }
 
