@@ -23,8 +23,6 @@
             static let token = "swiptToken"
         }
 
-        static let shared = SwiptJIT()
-
         private static let serviceType = "_swipt._tcp"
         private static let framesBeforeHandshake = 2
         private static let framesTimeout = Duration.milliseconds(500)
@@ -44,7 +42,7 @@
             status == .connected || status == .enabling
         }
 
-        @ObservationIgnored private let store = PreferenceStore.shared
+        @ObservationIgnored private let store: PreferenceStore
         @ObservationIgnored private var browser: NWBrowser?
         @ObservationIgnored private var candidates: [NWBrowser.Result] = []
         @ObservationIgnored private var server: URL?
@@ -55,7 +53,8 @@
         @ObservationIgnored private var enableTask: Task<Void, Never>?
         @ObservationIgnored private var generation: UInt64 = 0
 
-        private init() {
+        init(store: PreferenceStore) {
+            self.store = store
             let enabled = store.value(Bool.self, for: Key.isEnabled) ?? true
             isEnabled = enabled
             token = store.value(String.self, for: Key.token) ?? ""

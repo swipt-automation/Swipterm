@@ -4,7 +4,7 @@ import SwiftUI
 import UIKit
 
 struct OpenURLPromptModifier: ViewModifier {
-    private let system = LinuxSystem.shared
+    @Environment(LinuxSystem.self) private var system
 
     @State private var pendingWebURL: SheetURL?
     @State private var webURL: SheetURL?

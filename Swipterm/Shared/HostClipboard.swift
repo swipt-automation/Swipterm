@@ -4,8 +4,6 @@ import UIKit
 import UniformTypeIdentifiers
 
 final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
-    static let shared = HostClipboard()
-
     private static let plainTextMIMEs = [
         "text/plain;charset=utf-8",
         "UTF8_STRING",
@@ -20,7 +18,7 @@ final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
     private var isWritingFromGuest = false
     private var observers: [NSObjectProtocol] = []
 
-    private init() {
+    init() {
         let center = NotificationCenter.default
         let names: [Notification.Name] = [
             UIPasteboard.changedNotification,
@@ -169,11 +167,10 @@ final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
         }
     }
 
-    static func writePlainTextFromDevice(_ text: String) {
-        shared.write([LinuxClipboardItem(mime: "text/plain;charset=utf-8", data: Data(text.utf8))])
-        let mimes = plainTextMIMEs
-        let target = shared.lock.withLock { shared.runtime }
-        try? target?.setClipboardOffers(mimes)
+    func writePlainTextFromDevice(_ text: String) {
+        write([LinuxClipboardItem(mime: "text/plain;charset=utf-8", data: Data(text.utf8))])
+        let target = lock.withLock { runtime }
+        try? target?.setClipboardOffers(Self.plainTextMIMEs)
     }
 
     static func offeredMIMETypes(from pasteboard: UIPasteboard = .general) -> [String] {
@@ -240,8 +237,6 @@ final nonisolated class HostClipboard: LinuxClipboard, @unchecked Sendable {
 }
 
 final nonisolated class HostPasteStaging: @unchecked Sendable {
-    static let shared = HostPasteStaging()
-
     static let guestDirectory = "/run/host/paste"
     static var hostDirectory: URL {
         FileManager.default.temporaryDirectory.appending(path: "SwiptermPaste", directoryHint: .isDirectory)
@@ -266,8 +261,6 @@ final nonisolated class HostPasteStaging: @unchecked Sendable {
     private weak var runtime: LinuxRuntime?
     private var usesVirtioFS = true
     private var reservedNames: Set<String> = []
-
-    private init() {}
 
     func attach(to runtime: LinuxRuntime, usesVirtioFS: Bool) {
         lock.withLock {

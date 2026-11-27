@@ -2,7 +2,7 @@
     import SwiftUI
 
     struct JITRow: View {
-        private let jit = SwiptJIT.shared
+        @Environment(SwiptJIT.self) private var jit
 
         @State private var isPresented = false
 
@@ -26,7 +26,7 @@
     }
 
     private struct JITView: View {
-        private let jit = SwiptJIT.shared
+        @Environment(SwiptJIT.self) private var jit
 
         @State private var tokenDraft = ""
         @State private var isEditingToken = false

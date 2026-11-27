@@ -4,8 +4,8 @@ struct ContainerView: View {
     let container: LinuxContainer
     let dismissSettings: DismissAction
 
-    private let system = LinuxSystem.shared
-
+    @Environment(LinuxSystem.self) private var system
+    @Environment(ContainerStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var dataSize: Int64?
     @State private var isConfirmingExport = false
@@ -13,11 +13,16 @@ struct ContainerView: View {
     @State private var exportTask: Task<Void, Never>?
     @State private var exportedArchiveURL: URL?
     @State private var isSavingArchive = false
-    @State private var exportFailure: String?
-    @State private var isPresentingExportFailure = false
+    @State private var failure: Failure?
+
+    private struct Failure {
+        let title: LocalizedStringKey
+        let message: String
+    }
 
     var body: some View {
-        let isActive = container.id == system.activeContainerID
+        let isActive = container.id == store.activeContainerID
+        let occupancy = store.occupancy(of: container.id)
         Form {
             Section {
                 if let distribution = container.metadata.distribution {
@@ -30,6 +35,20 @@ struct ContainerView: View {
                         Text(dataSize.formatted(.byteCount(style: .file)))
                     }
                 }
+                if let occupancy {
+                    LabeledContent("Status") {
+                        switch occupancy {
+                        case let .mounted(path, readOnly):
+                            if readOnly {
+                                Text("Mounted Read-Only at \(Text(verbatim: path))")
+                            } else {
+                                Text("Mounted at \(Text(verbatim: path))")
+                            }
+                        case .entered, .exporting:
+                            ContainerOccupancyText(occupancy: occupancy)
+                        }
+                    }
+                }
             }
             Section("Actions") {
                 if !isActive {
@@ -37,18 +56,24 @@ struct ContainerView: View {
                         dismissSettings()
                         system.activate(container)
                     }
+                    .disabled(occupancy != nil)
                 }
                 Button("Export") {
                     isConfirmingExport = true
                 }
-                .disabled(isActive && system.state == .booting)
+                .disabled(occupancy != nil || (isActive && system.state == .booting))
                 Button("Delete", role: .destructive) {
                     isConfirmingDelete = true
                 }
+                .disabled(occupancy != nil)
                 .confirmationDialog("Delete Container?", isPresented: $isConfirmingDelete, titleVisibility: .visible) {
                     Button("Delete", role: .destructive) {
-                        dismiss()
-                        system.delete(container)
+                        do {
+                            try system.delete(container)
+                            dismiss()
+                        } catch {
+                            failure = Failure(title: "Couldn’t Delete Container", message: error.localizedDescription)
+                        }
                     }
                 }
             }
@@ -68,40 +93,44 @@ struct ContainerView: View {
             }
         }
         .background {
-            ExportProgressAlert(containerName: container.metadata.name, progress: system.exportProgress) {
+            ExportProgressAlert(containerName: container.metadata.name, progress: store.exportProgress[container.id]) {
                 exportTask?.cancel()
             } onDismiss: {
                 isSavingArchive = exportedArchiveURL != nil
-                isPresentingExportFailure = exportFailure != nil
             }
         }
         .fileMover(isPresented: $isSavingArchive, file: exportedArchiveURL) { result in
             if case let .failure(error) = result {
                 try! FileManager.default.removeItem(at: exportedArchiveURL!)
-                exportFailure = error.localizedDescription
-                isPresentingExportFailure = true
+                failure = Failure(title: "Couldn’t Export Container", message: error.localizedDescription)
             }
         } onCancellation: {
             try! FileManager.default.removeItem(at: exportedArchiveURL!)
         }
-        .alert("Couldn’t Export Container", isPresented: $isPresentingExportFailure, presenting: exportFailure) { _ in
+        .alert(failure?.title ?? "", isPresented: Binding {
+            failure != nil && store.exportProgress[container.id] == nil
+        } set: { presented in
+            if !presented {
+                failure = nil
+            }
+        }, presenting: failure) { _ in
         } message: { failure in
-            Text(failure)
+            Text(failure.message)
         }
         .task {
-            dataSize = await Task.detached(priority: .utility) { LinuxSystem.dataSize(of: container) }.value
+            dataSize = await Task.detached(priority: .utility) { ContainerStore.dataSize(of: container) }.value
         }
     }
 
     private func export() {
         exportedArchiveURL = nil
-        exportFailure = nil
+        failure = nil
         exportTask = Task {
             do {
                 exportedArchiveURL = try await system.export(container)
             } catch is CancellationError {
             } catch {
-                exportFailure = error.localizedDescription
+                failure = Failure(title: "Couldn’t Export Container", message: error.localizedDescription)
             }
         }
     }

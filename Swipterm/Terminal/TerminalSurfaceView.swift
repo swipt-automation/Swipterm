@@ -119,6 +119,7 @@ struct TerminalSurfaceView: View {
         ].compactMap { title, key in title.map { ($0, key) } })
 
         var inMemorySession: InMemoryTerminalSession?
+        var pasteStaging: HostPasteStaging!
         var readOutputActivity: (() -> OutputActivitySnapshot)?
         var onPasteFailure: ((any Error) -> Void)?
 
@@ -445,7 +446,7 @@ struct TerminalSurfaceView: View {
             let progress = Progress()
             let alert = TransferProgressAlert(progress: progress)
             alert.present(from: self)
-            HostPasteStaging.shared.stage(sources, progress: progress) { [weak self] result in
+            pasteStaging.stage(sources, progress: progress) { [weak self] result in
                 Task {
                     await alert.dismiss()
                     guard let self, !progress.isCancelled else { return }

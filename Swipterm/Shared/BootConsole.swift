@@ -304,3 +304,119 @@ nonisolated enum ConsoleLayout {
         return "[" + String(repeating: "#", count: filled) + String(repeating: "-", count: inner - filled) + "]"
     }
 }
+
+final class ConsoleBuffer {
+    private struct Progress {
+        var meter: ConsoleMeter
+        var chunkIndex: Int?
+        var lineLengths: [Int] = []
+    }
+
+    private(set) var chunks: [Data] = []
+    private(set) var progressEpoch: UInt64 = 0
+    private(set) var isClosed = false
+    private var listeners: [UUID: (Data) -> Void] = [:]
+    private var openProgress: Progress?
+    private var columns: UInt16 = 40
+
+    var text: String {
+        ConsoleText.plain(chunks)
+    }
+
+    func subscribe(_ handler: @escaping (Data) -> Void) -> UUID {
+        let id = UUID()
+        for chunk in chunks {
+            handler(chunk)
+        }
+        if !isClosed {
+            listeners[id] = handler
+        }
+        return id
+    }
+
+    func unsubscribe(_ id: UUID) {
+        listeners.removeValue(forKey: id)
+    }
+
+    func close() {
+        isClosed = true
+        listeners.removeAll()
+    }
+
+    func resize(columns: UInt16) {
+        guard columns != self.columns else { return }
+        self.columns = columns
+        if openProgress != nil {
+            renderProgress()
+        }
+    }
+
+    func append(_ chunk: Data) {
+        guard !isClosed else { return }
+        chunks.append(chunk)
+        for listener in listeners.values {
+            listener(chunk)
+        }
+    }
+
+    func appendStep(_ title: String) {
+        endProgress()
+        appendLines("\u{1B}[1m==> \(title)\u{1B}[0m\r\n")
+    }
+
+    func appendError(_ message: String) {
+        endProgress()
+        appendLines("\u{1B}[1;31merror:\u{1B}[0m \(message)\r\n")
+    }
+
+    func updateProgress(_ meter: ConsoleMeter, epoch: UInt64) {
+        guard !isClosed, progressEpoch == epoch else { return }
+        var progress = openProgress ?? Progress(meter: meter)
+        progress.meter = meter
+        openProgress = progress
+        renderProgress()
+    }
+
+    func updateDownload(bytesWritten: Int64, totalBytes: Int64?, name: String, start: ContinuousClock.Instant, epoch: UInt64) {
+        var meter = DownloadMeter(start: start, name: name)
+        if case let .download(current)? = openProgress?.meter {
+            meter = current
+        }
+        meter.update(bytesWritten: bytesWritten, totalBytes: totalBytes)
+        updateProgress(.download(meter), epoch: epoch)
+    }
+
+    func endProgress() {
+        progressEpoch &+= 1
+        let rendered = openProgress?.chunkIndex != nil
+        openProgress = nil
+        if rendered {
+            append(Data("\r\n".utf8))
+        }
+    }
+
+    private func appendLines(_ text: String) {
+        let atLineStart = chunks.last.map { $0.last == 0x0A } ?? true
+        append(Data(((atLineStart ? "" : "\r\n") + text).utf8))
+    }
+
+    private func renderProgress() {
+        var progress = openProgress!
+        let columns = Int(columns)
+        let lines = progress.meter.lines(width: max(columns - 1, 20))
+        let snapshot = lines.joined(separator: "\r\n")
+        let rows = progress.lineLengths.reduce(0) { $0 + max(($1 + columns - 1) / columns, 1) }
+        let redraw = Data(("\r" + (rows > 1 ? "\u{1B}[\(rows - 1)A" : "") + "\u{1B}[J" + snapshot).utf8)
+        if let chunkIndex = progress.chunkIndex {
+            chunks[chunkIndex] = Data(snapshot.utf8)
+        } else {
+            progress.chunkIndex = chunks.count
+            chunks.append(Data(snapshot.utf8))
+        }
+        progress.lineLengths = lines.map(\.count)
+        openProgress = progress
+        for listener in listeners.values {
+            listener(redraw)
+        }
+    }
+}

@@ -2,7 +2,13 @@ import CoreLocation
 import Foundation
 import SwiptermKit
 
-nonisolated enum HostCommands {
+nonisolated struct HostCommands: Sendable {
+    let system: LinuxSystem
+    let store: ContainerStore
+    let settings: AppSettings
+    let location: HostLocation
+    let catalog: LinuxDistributionCatalogStore
+
     private static let swiptermUsage = """
     usage: swipterm <command> [options]
 
@@ -10,6 +16,7 @@ nonisolated enum HostCommands {
       open <url>                  Open a URL on the host
       location [options]          Read device location
       caffeinate [on|off|status]  Manage background execution
+      container <command>         Manage other containers
       completion <shell>          Generate shell completion script
       help [command]              Show help for a command
     """
@@ -135,7 +142,7 @@ nonisolated enum HostCommands {
         let timestamp: String
     }
 
-    static func register(on runtime: LinuxRuntime) async throws {
+    func register(on runtime: LinuxRuntime) async throws {
         try await runtime.registerCommand(named: "swipterm") { invocation in
             try await handleSwipterm(invocation)
         }
@@ -144,7 +151,7 @@ nonisolated enum HostCommands {
                 try await handleOpen(invocation, arguments: invocation.arguments[...], commandName: name, strictHelp: false)
             }
         }
-        try await installShellCompletions(on: runtime.fileSystem)
+        try await Self.installShellCompletions(on: runtime.fileSystem)
     }
 
     private static func installShellCompletions(on fileSystem: LinuxFileSystem) async throws {
@@ -189,33 +196,36 @@ nonisolated enum HostCommands {
         }
     }
 
-    private static func handleSwipterm(_ invocation: HostCommandInvocation) async throws -> Int32 {
+    private func handleSwipterm(_ invocation: HostCommandInvocation) async throws -> Int32 {
         guard let subcommand = invocation.arguments.first else {
-            try await invocation.standardError.write(Data((swiptermUsage + "\n").utf8))
+            try await invocation.standardError.write(Data((Self.swiptermUsage + "\n").utf8))
             return 2
         }
         let rest = invocation.arguments.dropFirst()
         switch subcommand {
         case "-h", "--help":
-            try await invocation.standardOutput.write(Data((swiptermUsage + "\n").utf8))
+            try await invocation.standardOutput.write(Data((Self.swiptermUsage + "\n").utf8))
             return 0
         case "help":
             guard let topic = rest.first else {
-                try await invocation.standardOutput.write(Data((swiptermUsage + "\n").utf8))
+                try await invocation.standardOutput.write(Data((Self.swiptermUsage + "\n").utf8))
                 return 0
             }
             switch topic {
             case "open":
-                try await invocation.standardOutput.write(Data(openUsage.utf8))
+                try await invocation.standardOutput.write(Data(Self.openUsage.utf8))
                 return 0
             case "location":
-                try await invocation.standardOutput.write(Data((locationUsage + "\n").utf8))
+                try await invocation.standardOutput.write(Data((Self.locationUsage + "\n").utf8))
                 return 0
             case "caffeinate":
-                try await invocation.standardOutput.write(Data(caffeinateUsage.utf8))
+                try await invocation.standardOutput.write(Data(Self.caffeinateUsage.utf8))
+                return 0
+            case "container":
+                try await invocation.standardOutput.write(Data(Self.containerUsage.utf8))
                 return 0
             case "completion":
-                try await invocation.standardOutput.write(Data(completionUsage.utf8))
+                try await invocation.standardOutput.write(Data(Self.completionUsage.utf8))
                 return 0
             default:
                 try await invocation.standardError.write(Data("swipterm: unknown command: \(topic)\n".utf8))
@@ -227,8 +237,10 @@ nonisolated enum HostCommands {
             return try await handleLocation(invocation, arguments: rest)
         case "caffeinate":
             return try await handleCaffeinate(invocation, arguments: rest)
+        case "container":
+            return try await handleContainer(invocation, arguments: rest)
         case "completion":
-            return try await handleCompletion(invocation, arguments: rest)
+            return try await Self.handleCompletion(invocation, arguments: rest)
         case "__complete":
             return try await handleCompleteQuery(invocation, arguments: rest)
         default:
@@ -237,7 +249,7 @@ nonisolated enum HostCommands {
         }
     }
 
-    private static func handleOpen(
+    private func handleOpen(
         _ invocation: HostCommandInvocation,
         arguments: ArraySlice<String>,
         commandName: String,
@@ -269,23 +281,23 @@ nonisolated enum HostCommands {
             return 1
         }
         await MainActor.run {
-            LinuxSystem.shared.pendingOpenURL = url
+            system.pendingOpenURL = url
         }
         return 0
     }
 
-    private static func handleCaffeinate(
+    private func handleCaffeinate(
         _ invocation: HostCommandInvocation,
         arguments: ArraySlice<String>
     ) async throws -> Int32 {
         if arguments.count > 1 {
-            try await invocation.standardError.write(Data(caffeinateUsage.utf8))
+            try await invocation.standardError.write(Data(Self.caffeinateUsage.utf8))
             return 2
         }
         switch arguments.first {
         case nil, "on":
             do {
-                try await HostLocation.shared.enableCaffeinateFromCommand()
+                try await location.enableCaffeinateFromCommand()
                 return 0
             } catch is CancellationError {
                 return 1
@@ -294,17 +306,17 @@ nonisolated enum HostCommands {
                 return 1
             }
         case "off":
-            await HostLocation.shared.disableCaffeinateFromCommand()
+            await location.disableCaffeinateFromCommand()
             return 0
         case "status":
-            let enabled = await MainActor.run { AppSettings.shared.isCaffeinateEnabled }
+            let enabled = await MainActor.run { settings.isCaffeinateEnabled }
             try await invocation.standardOutput.write(Data((enabled ? "enabled\n" : "disabled\n").utf8))
             return 0
         case "-h", "--help":
-            try await invocation.standardOutput.write(Data(caffeinateUsage.utf8))
+            try await invocation.standardOutput.write(Data(Self.caffeinateUsage.utf8))
             return 0
         default:
-            try await invocation.standardError.write(Data(caffeinateUsage.utf8))
+            try await invocation.standardError.write(Data(Self.caffeinateUsage.utf8))
             return 2
         }
     }
@@ -339,7 +351,7 @@ nonisolated enum HostCommands {
         }
     }
 
-    private static func handleCompleteQuery(
+    private func handleCompleteQuery(
         _ invocation: HostCommandInvocation,
         arguments: ArraySlice<String>
     ) async throws -> Int32 {
@@ -356,7 +368,10 @@ nonisolated enum HostCommands {
             }
         }
         let words = index < arguments.endIndex ? Array(arguments[index...]) : [""]
-        let items = completionCandidates(for: words)
+        let containers = await MainActor.run {
+            store.containers.filter { $0.id != store.activeContainerID }.map(\.metadata.name)
+        }
+        let items = Self.completionCandidates(for: words, containers: containers)
         guard !items.isEmpty else {
             return 0
         }
@@ -386,10 +401,11 @@ nonisolated enum HostCommands {
         ("open", "Open a URL on the host"),
         ("location", "Read device location"),
         ("caffeinate", "Manage background execution"),
+        ("container", "Manage other containers"),
         ("completion", "Generate shell completion script"),
     ]
 
-    private static func completionCandidates(for words: [String]) -> [(value: String, description: String)] {
+    private static func completionCandidates(for words: [String], containers: [String]) -> [(value: String, description: String)] {
         let first = words[0]
         if words.count == 1 {
             if first.hasPrefix("-") {
@@ -440,6 +456,9 @@ nonisolated enum HostCommands {
                 ("off", "Disable background execution"),
                 ("status", "Show current status"),
             ].filter { $0.value.hasPrefix(current) }
+
+        case "container":
+            return containerCompletionCandidates(for: Array(words.dropFirst()), containers: containers)
 
         case "location":
             if let previous, previous == "--accuracy" || isShortAccuracyOption(previous) {
@@ -506,30 +525,30 @@ nonisolated enum HostCommands {
         }
     }
 
-    private static func handleLocation(
+    private func handleLocation(
         _ invocation: HostCommandInvocation,
         arguments: ArraySlice<String>
     ) async throws -> Int32 {
         let options: LocationOptions
-        switch parseLocationOptions(arguments) {
+        switch Self.parseLocationOptions(arguments) {
         case let .success(parsed):
             options = parsed
         case let .failure(error):
-            try await invocation.standardError.write(Data("swipterm location: \(error.message)\n\(locationUsage)\n".utf8))
+            try await invocation.standardError.write(Data("swipterm location: \(error.message)\n\(Self.locationUsage)\n".utf8))
             return 2
         }
         if options.help {
-            try await invocation.standardOutput.write(Data((locationUsage + "\n").utf8))
+            try await invocation.standardOutput.write(Data((Self.locationUsage + "\n").utf8))
             return 0
         }
 
         do {
-            try await HostLocation.shared.prepareAccess(accuracy: options.accuracy)
+            try await location.prepareAccess(accuracy: options.accuracy)
             if options.watch {
                 try await streamLocations(invocation, options: options)
             } else {
-                let (location, accuracyAuth) = try await HostLocation.shared.nextLocation(accuracy: options.accuracy)
-                try await writeLocation(location, accuracyAuthorization: accuracyAuth, json: options.json, to: invocation.standardOutput)
+                let (location, accuracyAuth) = try await location.nextLocation(accuracy: options.accuracy)
+                try await Self.writeLocation(location, accuracyAuthorization: accuracyAuth, json: options.json, to: invocation.standardOutput)
             }
             return 0
         } catch let error as LinuxError where error == .EPIPE {
@@ -660,7 +679,7 @@ nonisolated enum HostCommands {
         }
     }
 
-    private static func streamLocations(
+    private func streamLocations(
         _ invocation: HostCommandInvocation,
         options: LocationOptions
     ) async throws {
@@ -669,12 +688,12 @@ nonisolated enum HostCommands {
             continuation.onTermination = { _ in
                 if let leaseID = state.terminate() {
                     Task { @MainActor in
-                        HostLocation.shared.removeLease(leaseID)
+                        location.removeLease(leaseID)
                     }
                 }
             }
             Task { @MainActor in
-                let leaseID = HostLocation.shared.addLease(accuracy: options.accuracy) { result in
+                let leaseID = location.addLease(accuracy: options.accuracy) { result in
                     switch result {
                     case let .success(value):
                         continuation.yield(value)
@@ -683,13 +702,13 @@ nonisolated enum HostCommands {
                     }
                 }
                 if !state.attach(leaseID) {
-                    HostLocation.shared.removeLease(leaseID)
+                    location.removeLease(leaseID)
                 }
             }
         }
         for try await (location, accuracyAuth) in stream {
             try Task.checkCancellation()
-            try await writeLocation(location, accuracyAuthorization: accuracyAuth, json: options.json, to: invocation.standardOutput)
+            try await Self.writeLocation(location, accuracyAuthorization: accuracyAuth, json: options.json, to: invocation.standardOutput)
         }
     }
 

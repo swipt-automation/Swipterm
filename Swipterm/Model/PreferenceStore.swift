@@ -3,8 +3,6 @@ import GRDB
 import os
 
 final class PreferenceStore {
-    static let shared = PreferenceStore()
-
     private nonisolated struct Item: Codable, FetchableRecord, PersistableRecord {
         static let databaseTableName = "preferences"
 
@@ -12,9 +10,11 @@ final class PreferenceStore {
         var data: Data
     }
 
-    private let database = AppDatabase.shared
+    private let database: DatabaseQueue
 
-    private init() {}
+    init(database: DatabaseQueue) {
+        self.database = database
+    }
 
     func value<T: Decodable>(_ type: T.Type, for name: String) -> T? {
         guard let item = try! database.read({ try Item.fetchOne($0, key: name) }) else { return nil }

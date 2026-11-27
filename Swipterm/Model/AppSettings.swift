@@ -34,8 +34,6 @@ nonisolated enum GPUMode: String, Codable, Hashable, Sendable {
 
 @Observable
 final class AppSettings {
-    static let shared = AppSettings()
-
     static let terminalAppearanceDidChange = Notification.Name("AppSettings.terminalAppearanceDidChange")
     static let defaultLightTheme = "Alabaster"
     static let defaultDarkTheme = "Afterglow"
@@ -98,9 +96,10 @@ final class AppSettings {
         didSet { store.set(shortcuts, for: Key.shortcuts) }
     }
 
-    private let store = PreferenceStore.shared
+    private let store: PreferenceStore
 
-    private init() {
+    init(store: PreferenceStore) {
+        self.store = store
         lightTheme = Self.storedTheme(in: store, for: Key.lightTheme) ?? Self.defaultLightTheme
         darkTheme = Self.storedTheme(in: store, for: Key.darkTheme) ?? Self.defaultDarkTheme
         lightConfig = store.value(String.self, for: Key.lightConfig) ?? ""

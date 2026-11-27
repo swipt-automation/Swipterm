@@ -149,8 +149,6 @@ final class LinuxDistributionCatalogStore {
         case failed(String)
     }
 
-    static let shared = LinuxDistributionCatalogStore()
-
     private(set) var loadState: LoadState = .idle
     private(set) var releasesByDistribution: [LinuxDistribution: [LinuxReleaseImage]] = [:]
 
@@ -158,7 +156,7 @@ final class LinuxDistributionCatalogStore {
 
     private let fetchReleases: () async throws -> [LinuxDistribution: [LinuxReleaseImage]]
 
-    private init() {
+    init() {
         #if SWIPTERM_STORE_SCREENSHOTS && targetEnvironment(simulator)
             let releases = [LinuxDistribution.alpine: [StoreScreenshot.alpineRelease]]
             fetchReleases = { releases }

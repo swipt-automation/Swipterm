@@ -3,12 +3,15 @@ import CoreText
 import Foundation
 
 final class ImportedFontStore: ObservableObject {
-    static let shared = ImportedFontStore()
-
     @Published private(set) var fonts: [ImportedFont] = []
 
     private let directory = URL.applicationSupportDirectory.appending(path: "Fonts", directoryHint: .isDirectory)
     private var bootstrapTask: Task<Void, Never>?
+    private let settings: AppSettings
+
+    init(settings: AppSettings) {
+        self.settings = settings
+    }
 
     func bootstrap() async {
         if let bootstrapTask {
@@ -54,8 +57,8 @@ final class ImportedFontStore: ObservableObject {
             try FileManager.default.removeItem(at: font.fileURL)
             return Self.scan(in: directory)
         }
-        if AppSettings.shared.fontFamily == font.familyName {
-            AppSettings.shared.fontFamily = ""
+        if settings.fontFamily == font.familyName {
+            settings.fontFamily = ""
         }
     }
 

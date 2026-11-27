@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct GhosttyConfigurationView: View {
-    @Bindable private var settings = AppSettings.shared
+    @Bindable var settings: AppSettings
     @State private var lightPickerTheme: String?
     @State private var darkPickerTheme: String?
 
@@ -69,7 +69,7 @@ struct GhosttyConfigurationView: View {
             })
             if isCustom {
                 NavigationLink("Edit Custom Configuration") {
-                    EditGhosttyConfigView(scheme: scheme)
+                    EditGhosttyConfigView(scheme: scheme, settings: settings)
                 }
             }
         }

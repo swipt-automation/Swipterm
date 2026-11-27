@@ -9,21 +9,7 @@ nonisolated enum ContainerProvisioner {
         let software: ContainerSoftware
     }
 
-    static func detectRelease(on runtime: LinuxRuntime) async throws -> OSRelease? {
-        for path in ["/etc/os-release", "/usr/lib/os-release"] {
-            do {
-                return try await OSRelease(String(decoding: runtime.fileSystem.contents(of: path), as: UTF8.self))
-            } catch let error as LinuxError where error == .ENOENT {}
-        }
-        return nil
-    }
-
-    static func start(
-        on runtime: LinuxRuntime,
-        terminal: LinuxTerminal,
-        request: Request,
-        release: OSRelease?
-    ) async throws -> LinuxProcess {
+    static func configuration(terminal: LinuxTerminal, request: Request, release: OSRelease?) -> LinuxProcess.Configuration {
         let distribution = release?.distribution
         let software = request.software
         let developerTools = software.installedDeveloperTools
@@ -59,7 +45,7 @@ nonisolated enum ContainerProvisioner {
             }
         }
 
-        return try await runtime.spawn(LinuxProcess.Configuration(
+        return LinuxProcess.Configuration(
             executablePath: "/bin/sh",
             arguments: ["-c", setupScript, "swipterm-setup"],
             environment: environment,
@@ -67,7 +53,7 @@ nonisolated enum ContainerProvisioner {
             standardInput: .null,
             standardOutput: .terminal(terminal),
             standardError: .terminal(terminal)
-        ))
+        )
     }
 
     private static var stepTitles: KeyValuePairs<String, String> {
@@ -275,13 +261,15 @@ nonisolated enum ContainerProvisioner {
     }
 
     index_modules() {
-        release=$(uname -r)
-        for modules in "/lib/modules/$release" "/usr/lib/modules/$release"; do
+        indexed=
+        for modules in /lib/modules/* /usr/lib/modules/*; do
             if [ -d "$modules" ] && [ ! -e "$modules/modules.dep.bin" ]; then
-                step modules
-                have depmod || install_packages kmod
-                depmod "$release"
-                break
+                if [ -z "$indexed" ]; then
+                    step modules
+                    have depmod || install_packages kmod
+                    indexed=1
+                fi
+                depmod "${modules##*/}"
             fi
         done
     }

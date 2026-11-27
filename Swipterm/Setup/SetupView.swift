@@ -31,9 +31,11 @@ struct SetupView: View {
     }
 
     @Binding var draft: SetupDraft
+    let onCreated: (ContainerCreation) -> Void
 
-    private let catalog = LinuxDistributionCatalogStore.shared
-    private let system = LinuxSystem.shared
+    @Environment(LinuxDistributionCatalogStore.self) private var catalog
+    @Environment(LinuxSystem.self) private var system
+    @Environment(ContainerStore.self) private var store
 
     @State private var showFileImporter = false
     @State private var importsContainer = false
@@ -203,7 +205,7 @@ struct SetupView: View {
             do {
                 let url = try result.get()[0]
                 if importsContainer {
-                    system.install(.importArchive(url))
+                    try create(.importArchive(url))
                     return
                 }
                 draft.customFileURL = url
@@ -276,7 +278,13 @@ struct SetupView: View {
     }
 
     private var isInitialSetup: Bool {
-        system.containers.isEmpty
+        store.containers.isEmpty
+    }
+
+    private func create(_ request: ContainerCreation.Request) throws {
+        if let creation = try system.create(request) {
+            onCreated(creation)
+        }
     }
 
     private var softwareView: SetupSoftwareView {
@@ -366,7 +374,7 @@ struct SetupView: View {
 
     private func startInstall() {
         focusedField = nil
-        let installSource: LinuxSystem.InstallRequest.Creation.Source
+        let installSource: ContainerCreation.Request.Creation.Source
         switch draft.source {
         case .distribution:
             installSource = .catalog(selectedRelease!)
@@ -402,13 +410,17 @@ struct SetupView: View {
                 authorizedKeys: draft.ssh.authentication.allowsPublicKey ? draft.ssh.authorizedKeys : ""
             )
         }
-        system.install(.create(LinuxSystem.InstallRequest.Creation(
-            source: installSource,
-            containerName: Self.sanitizedContainerName(draft.containerName),
-            user: draft.usesRootUser ? "root" : draft.username.isEmpty ? Self.fallbackUsername : draft.username,
-            password: draft.password.isEmpty ? nil : draft.password,
-            software: software
-        )))
+        do {
+            try create(.create(ContainerCreation.Request.Creation(
+                source: installSource,
+                containerName: Self.sanitizedContainerName(draft.containerName),
+                user: draft.usesRootUser ? "root" : draft.username.isEmpty ? Self.fallbackUsername : draft.username,
+                password: draft.password.isEmpty ? nil : draft.password,
+                software: software
+            )))
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     static var supportedArchiveTypes: [UTType] {
@@ -438,7 +450,7 @@ struct SetupView: View {
         return sanitizedContainerName(name)
     }
 
-    private static func sanitizedContainerName(_ raw: String) -> String {
+    nonisolated static func sanitizedContainerName(_ raw: String) -> String {
         let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789-")
         let cleaned = String(raw.lowercased().map { allowed.contains($0) ? $0 : "-" })
         let collapsed = cleaned

@@ -1,7 +1,11 @@
 import SwiftUI
 
 struct ManageShortcutsView: View {
-    private let settings = AppSettings.shared
+    let services: AppServices
+
+    private var settings: AppSettings {
+        services.settings
+    }
 
     @State private var suggestions: [TerminalShortcut]?
     @State private var editing: TerminalShortcut?
@@ -69,7 +73,10 @@ struct ManageShortcutsView: View {
         }
         .task {
             do {
-                suggestions = try await TerminalShortcut.suggestions()
+                suggestions = try await TerminalShortcut.suggestions(
+                    fileSystem: services.system.guestFileSystem,
+                    user: services.containers.activeContainer!.metadata.defaultUser
+                )
             } catch {
                 suggestionFailure = error.localizedDescription
             }

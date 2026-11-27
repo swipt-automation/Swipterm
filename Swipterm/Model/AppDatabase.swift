@@ -7,9 +7,7 @@ enum AppDatabase {
 
     private static let url = URL.applicationSupportDirectory.appending(path: "Swipterm.sqlite")
 
-    static let shared = open()
-
-    private static func open() -> DatabaseQueue {
+    static func open() -> DatabaseQueue {
         do {
             do {
                 return try load()

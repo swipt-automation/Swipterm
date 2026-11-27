@@ -2,20 +2,34 @@ import SwiftUI
 
 @main
 struct SwiptermApp: App {
+    @State private var services = AppServices()
+
     var body: some Scene {
         WindowGroup {
-            #if SWIPTERM_STORE_SCREENSHOTS && targetEnvironment(simulator)
-                StoreScreenshotBatch { ContentView() }
-            #else
-                ContentView()
+            Group {
+                #if SWIPTERM_STORE_SCREENSHOTS && targetEnvironment(simulator)
+                    StoreScreenshotBatch { ContentView(services: services) }
+                #else
+                    ContentView(services: services)
+                #endif
+            }
+            .environment(services.system)
+            .environment(services.containers)
+            .environment(services.settings)
+            .environment(services.location)
+            .environment(services.catalog)
+            .environmentObject(services.fonts)
+            #if DEBUG || SIDELOAD
+                .environment(services.jit)
             #endif
         }
     }
 }
 
 private struct ContentView: View {
-    private let system = LinuxSystem.shared
-    @State private var sessionManager = TerminalSessionManager()
+    let services: AppServices
+
+    @State private var sessionManager: TerminalSessionManager
     @State private var setupDraft = SetupDraft()
     @State private var showSettings = false
 
@@ -23,19 +37,26 @@ private struct ContentView: View {
         @Environment(\.locale) private var screenshotLocale
     #endif
 
+    init(services: AppServices) {
+        self.services = services
+        _sessionManager = State(initialValue: TerminalSessionManager(services: services))
+    }
+
     var body: some View {
+        let system = services.system
+        let containers = services.containers
+        let creation = containers.creations.first
         Group {
             switch system.state {
             case .checking:
                 Color.clear
-            case .setup, .provisioning:
+            case .setup:
                 NavigationStack {
-                    switch system.state {
-                    case let .provisioning(provisioning):
-                        ProvisioningView(provisioning: provisioning)
-                            .id(provisioning.attempt)
-                    default:
-                        SetupView(draft: $setupDraft)
+                    if let creation {
+                        ProvisioningView(creation: creation)
+                            .id(creation.attempt)
+                    } else {
+                        SetupView(draft: $setupDraft) { _ in }
                     }
                 }
                 #if SWIPTERM_STORE_SCREENSHOTS && targetEnvironment(simulator)
@@ -58,18 +79,18 @@ private struct ContentView: View {
             }
         }
         .sheet(isPresented: $showSettings) {
-            NavigationStack {
-                SettingsView()
-            }
+            SettingsView()
         }
-        .modifier(KeepScreenAwakeModifier(isRequired: system.state.keepsScreenAwake || system.exportProgress != nil))
+        .modifier(KeepScreenAwakeModifier(
+            isRequired: containers.creations.contains { $0.state == .running } || !containers.exportProgress.isEmpty
+        ))
         .modifier(OpenURLPromptModifier())
         .modifier(BootFailurePromptModifier())
         .onChange(of: system.state) { _, state in
             switch state {
             case .running:
                 setupDraft = SetupDraft()
-            case .setup, .provisioning, .failed:
+            case .setup, .failed:
                 showSettings = false
             default:
                 break
@@ -81,9 +102,9 @@ private struct ContentView: View {
                 sessionManager.closeAll()
             }
             #if DEBUG || SIDELOAD
-                SwiptJIT.shared.start()
+                services.jit.start()
             #endif
-            await ImportedFontStore.shared.bootstrap()
+            await services.fonts.bootstrap()
             system.bootstrap()
         }
         #endif

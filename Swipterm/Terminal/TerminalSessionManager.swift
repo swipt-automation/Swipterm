@@ -14,6 +14,12 @@ final class TerminalSessionManager {
 
     private(set) var activeSession: TerminalSession?
 
+    let services: AppServices
+
+    init(services: AppServices) {
+        self.services = services
+    }
+
     func ensureInitialSession() {
         if sessions.isEmpty {
             addSession()
@@ -22,7 +28,7 @@ final class TerminalSessionManager {
 
     func addSession(shortcut: TerminalShortcut? = nil) {
         let numbers = Set(sessions.map(\.number))
-        let session = TerminalSession(number: (1...).first { !numbers.contains($0) }!, shortcut: shortcut)
+        let session = TerminalSession(number: (1...).first { !numbers.contains($0) }!, shortcut: shortcut, services: services)
         let id = session.id
         session.onCleanExit = { [weak self] in
             Task {

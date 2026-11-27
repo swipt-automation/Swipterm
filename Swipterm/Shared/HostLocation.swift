@@ -101,7 +101,6 @@ final class HostLocation: NSObject {
         var continuation: CheckedContinuation<(CLLocation, CLAccuracyAuthorization), any Error>?
     }
 
-    static let shared = HostLocation()
     private static let precisePurposeKey = "PreciseLocation"
     private static let recentFixAge: TimeInterval = 10
     private static let refinementTimeout = Duration.seconds(5)
@@ -121,6 +120,7 @@ final class HostLocation: NSObject {
     @ObservationIgnored var onBackgroundKeepAliveChange: (() -> Void)?
 
     @ObservationIgnored private let manager = CLLocationManager()
+    @ObservationIgnored private let settings: AppSettings
     @ObservationIgnored private var isUpdating = false
     @ObservationIgnored private var isContainerActive = false
     @ObservationIgnored private var requestedAlwaysUpgrade = false
@@ -129,7 +129,8 @@ final class HostLocation: NSObject {
     @ObservationIgnored private var leases: [UUID: Lease] = [:]
     @ObservationIgnored private var singleRequests: [UUID: SingleRequest] = [:]
 
-    override private init() {
+    init(settings: AppSettings) {
+        self.settings = settings
         authorization = manager.authorizationStatus
         accuracyAuthorization = manager.accuracyAuthorization
         super.init()
@@ -146,7 +147,6 @@ final class HostLocation: NSObject {
     }
 
     func setCaffeinateEnabled(_ isEnabled: Bool) {
-        let settings = AppSettings.shared
         guard isEnabled else {
             pendingUICaffeinateAuthorization = false
             settings.isCaffeinateEnabled = false
@@ -165,7 +165,6 @@ final class HostLocation: NSObject {
     }
 
     func enableCaffeinateFromCommand() async throws {
-        let settings = AppSettings.shared
         settings.isCaffeinateAvailable = true
         if authorization == .notDetermined {
             guard UIApplication.shared.applicationState != .background else {
@@ -194,7 +193,7 @@ final class HostLocation: NSObject {
 
     func disableCaffeinateFromCommand() {
         pendingUICaffeinateAuthorization = false
-        AppSettings.shared.isCaffeinateEnabled = false
+        settings.isCaffeinateEnabled = false
         reconcile()
     }
 
@@ -337,7 +336,6 @@ final class HostLocation: NSObject {
     }
 
     func reconcile() {
-        let settings = AppSettings.shared
         let inBackground = UIApplication.shared.applicationState == .background
         if settings.isCaffeinateEnabled {
             switch authorization {

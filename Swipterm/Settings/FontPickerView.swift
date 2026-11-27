@@ -6,7 +6,7 @@ struct FontPickerView: View {
     @Binding private var selection: String
     private let families: [String]
 
-    @ObservedObject private var fontStore = ImportedFontStore.shared
+    @EnvironmentObject private var fontStore: ImportedFontStore
     @State private var searchText = ""
     @State private var showFileImporter = false
     @State private var errorMessage: String?

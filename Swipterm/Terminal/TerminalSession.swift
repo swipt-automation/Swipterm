@@ -36,6 +36,7 @@ final class TerminalSession: Identifiable {
 
     @ObservationIgnored var onCleanExit: (() -> Void)?
 
+    @ObservationIgnored let services: AppServices
     @ObservationIgnored private let session: InMemoryTerminalSession
     @ObservationIgnored private let relay: TerminalRelay
     @ObservationIgnored private let startedAt = ContinuousClock.now
@@ -43,9 +44,10 @@ final class TerminalSession: Identifiable {
     @ObservationIgnored private var isClosed = false
     @ObservationIgnored private var cancellables: Set<AnyCancellable> = []
 
-    init(number: Int, shortcut: TerminalShortcut?) {
+    init(number: Int, shortcut: TerminalShortcut?, services: AppServices) {
         self.number = number
         self.shortcut = shortcut
+        self.services = services
         let relay = TerminalRelay()
         self.relay = relay
         session = InMemoryTerminalSession(
@@ -61,8 +63,8 @@ final class TerminalSession: Identifiable {
         }
         state = TerminalViewState(
             configSource: .none,
-            theme: TerminalAppearance.theme(),
-            terminalConfiguration: TerminalAppearance.fontConfiguration()
+            theme: TerminalAppearance.theme(services.settings),
+            terminalConfiguration: TerminalAppearance.fontConfiguration(services.settings)
         )
         state.configuration = TerminalSurfaceOptions(backend: .inMemory(session))
         extras = TerminalExtras(state: state)
@@ -73,6 +75,7 @@ final class TerminalSession: Identifiable {
         view.configuration = state.configuration
         view.delegate = extras
         view.inMemorySession = session
+        view.pasteStaging = services.pasteStaging
         view.readOutputActivity = {
             relay.outputActivitySnapshot()
         }
@@ -93,7 +96,7 @@ final class TerminalSession: Identifiable {
 
     var title: String {
         let trimmed = extras.title.trimmingCharacters(in: .whitespaces)
-        return trimmed.isEmpty ? shortcut?.name ?? LinuxSystem.shared.activeContainer?.metadata.name ?? "" : trimmed
+        return trimmed.isEmpty ? shortcut?.name ?? services.containers.activeContainer?.metadata.name ?? "" : trimmed
     }
 
     var workingDirectory: String {
@@ -119,17 +122,19 @@ final class TerminalSession: Identifiable {
         let relay = relay
         let firstPtyOutput = OnceFlag()
         let startupInput = shortcut?.startupInput
+        let system = services.system
+        let console = system.console
         var consoleSubscription: UUID?
         defer {
             if let consoleSubscription {
-                LinuxSystem.shared.unsubscribeConsole(consoleSubscription)
+                console.unsubscribe(consoleSubscription)
             }
         }
         do {
-            if LinuxSystem.shared.state != .running {
+            if system.state != .running {
                 var showedBootConsole = false
-                if number == 1, LinuxSystem.shared.state == .booting {
-                    consoleSubscription = LinuxSystem.shared.subscribeConsole { [weak self] data in
+                if number == 1, system.state == .booting {
+                    consoleSubscription = console.subscribe { [weak self] data in
                         guard !data.isEmpty else { return }
                         showedBootConsole = true
                         if self?.hasVisibleOutput == false {
@@ -138,9 +143,9 @@ final class TerminalSession: Identifiable {
                         session.receive(data)
                     }
                 }
-                try await LinuxSystem.shared.waitUntilRunning()
+                try await system.waitUntilRunning()
                 if let id = consoleSubscription {
-                    LinuxSystem.shared.unsubscribeConsole(id)
+                    console.unsubscribe(id)
                     consoleSubscription = nil
                 }
                 if showedBootConsole {
@@ -149,7 +154,7 @@ final class TerminalSession: Identifiable {
             }
             guard !isClosed else { return }
             let size = relay.size
-            let handle = try await LinuxSystem.shared.openSession(columns: size.columns, rows: size.rows)
+            let handle = try await system.openSession(columns: size.columns, rows: size.rows)
             guard !isClosed else {
                 handle.terminal.close()
                 return
@@ -231,8 +236,8 @@ final class TerminalSession: Identifiable {
     }
 
     private func applySettings() {
-        state.controller.setTheme(TerminalAppearance.theme())
-        state.controller.setTerminalConfiguration(TerminalAppearance.fontConfiguration())
+        state.controller.setTheme(TerminalAppearance.theme(services.settings))
+        state.controller.setTerminalConfiguration(TerminalAppearance.fontConfiguration(services.settings))
     }
 
     private func postSystemNotification(title: String, body: String) {
@@ -254,9 +259,8 @@ final class TerminalSession: Identifiable {
 }
 
 enum TerminalAppearance {
-    static func theme() -> TerminalTheme {
-        let settings = AppSettings.shared
-        return TerminalTheme(
+    static func theme(_ settings: AppSettings) -> TerminalTheme {
+        TerminalTheme(
             light: configuration(themeName: settings.lightTheme, customText: settings.lightConfig),
             dark: configuration(themeName: settings.darkTheme, customText: settings.darkConfig)
         )
@@ -278,8 +282,7 @@ enum TerminalAppearance {
         return GhosttyThemeCatalog.theme(named: themeName)!.toTerminalConfiguration()
     }
 
-    static func fontConfiguration() -> TerminalConfiguration {
-        let settings = AppSettings.shared
+    static func fontConfiguration(_ settings: AppSettings) -> TerminalConfiguration {
         #if SWIPTERM_STORE_SCREENSHOTS && targetEnvironment(simulator)
             let size = ProcessInfo.processInfo.environment["SWIPTERM_SCREENSHOT_FONT_SIZE"].flatMap(Float.init) ?? Float(settings.fontSize)
         #else

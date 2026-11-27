@@ -73,7 +73,7 @@ struct TerminalSessionContentView: View {
     }
 
     private var isBootFailed: Bool {
-        if case .failed = LinuxSystem.shared.state {
+        if case .failed = session.services.system.state {
             return true
         }
         return false
@@ -81,7 +81,7 @@ struct TerminalSessionContentView: View {
 
     private var isEnablingJIT: Bool {
         #if DEBUG || SIDELOAD
-            SwiptJIT.shared.status == .enabling
+            session.services.jit.status == .enabling
         #else
             false
         #endif
@@ -91,7 +91,7 @@ struct TerminalSessionContentView: View {
         if isEnablingJIT {
             return "Enabling JIT…"
         }
-        if LinuxSystem.shared.state == .booting {
+        if session.services.system.state == .booting {
             return "Starting Linux…"
         }
         return nil

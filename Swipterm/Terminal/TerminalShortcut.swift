@@ -36,10 +36,8 @@ nonisolated struct TerminalShortcut: Codable, Hashable, Identifiable, Sendable {
 }
 
 extension TerminalShortcut {
-    static func suggestions() async throws -> [TerminalShortcut] {
-        let system = LinuxSystem.shared
-        guard let fileSystem = system.guestFileSystem else { return [] }
-        let user = system.activeContainer!.metadata.defaultUser
+    static func suggestions(fileSystem: LinuxFileSystem?, user: String) async throws -> [TerminalShortcut] {
+        guard let fileSystem else { return [] }
         let passwd = try await fileSystem.contents(of: "/etc/passwd")
         guard let home = String(decoding: passwd, as: UTF8.self)
             .split(separator: "\n")

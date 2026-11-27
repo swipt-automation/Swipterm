@@ -3,6 +3,8 @@ import SwiptermKit
 import UIKit
 
 nonisolated struct ClipboardDevice: LinuxCharacterDevice {
+    let clipboard: HostClipboard
+
     func open(access: LinuxFileAccess) throws -> any LinuxCharacterDeviceFile {
         let initialData = switch access {
         case .readOnly, .readWrite:
@@ -10,11 +12,12 @@ nonisolated struct ClipboardDevice: LinuxCharacterDevice {
         case .writeOnly:
             Data()
         }
-        return ClipboardDeviceFile(access: access, initialData: initialData)
+        return ClipboardDeviceFile(clipboard: clipboard, access: access, initialData: initialData)
     }
 }
 
 private final nonisolated class ClipboardDeviceFile: LinuxCharacterDeviceFile, @unchecked Sendable {
+    private let clipboard: HostClipboard
     private let access: LinuxFileAccess
     private let lock = NSLock()
     private let readBuffer: Data
@@ -22,7 +25,8 @@ private final nonisolated class ClipboardDeviceFile: LinuxCharacterDeviceFile, @
     private var writeBuffer = Data()
     private var didWrite = false
 
-    init(access: LinuxFileAccess, initialData: Data) {
+    init(clipboard: HostClipboard, access: LinuxFileAccess, initialData: Data) {
+        self.clipboard = clipboard
         self.access = access
         readBuffer = initialData
     }
@@ -57,7 +61,7 @@ private final nonisolated class ClipboardDeviceFile: LinuxCharacterDeviceFile, @
             (didWrite || access == .writeOnly) ? writeBuffer : nil
         }
         if let written {
-            HostClipboard.writePlainTextFromDevice(String(decoding: written, as: UTF8.self))
+            clipboard.writePlainTextFromDevice(String(decoding: written, as: UTF8.self))
         }
     }
 }

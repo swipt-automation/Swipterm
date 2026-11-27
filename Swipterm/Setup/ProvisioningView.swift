@@ -3,70 +3,80 @@ import GhosttyTerminal
 import SwiftUI
 
 struct ProvisioningView: View {
-    let provisioning: LinuxSystem.Provisioning
+    let creation: ContainerCreation
 
-    private let system = LinuxSystem.shared
-
-    @State private var terminal = SetupTerminal()
+    @Environment(AppSettings.self) private var settings
+    @State private var terminal: SetupTerminal?
     @State private var isPresentingFailure = false
 
     var body: some View {
         ZStack {
             backgroundColor
                 .ignoresSafeArea()
-            TerminalSurfaceView(
-                surfaceView: terminal.surfaceView,
-                state: terminal.state,
-                isActive: false,
-                isVisible: true
-            )
-            if !terminal.hasVisibleOutput, provisioning.failure == nil {
+            if let terminal {
+                TerminalSurfaceView(
+                    surfaceView: terminal.surfaceView,
+                    state: terminal.state,
+                    isActive: false,
+                    isVisible: true
+                )
+            }
+            if terminal?.hasVisibleOutput != true, creation.state == .running {
                 ProgressView()
                     .controlSize(.large)
             }
         }
-        .navigationTitle("Swipterm Setup")
+        .navigationTitle(Text(verbatim: creation.name))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
+            ToolbarItem(placement: creation.activatesWhenFinished ? .cancellationAction : .primaryAction) {
                 Button("Cancel", role: .cancel) {
-                    system.cancelSetup()
+                    creation.cancel()
                 }
             }
-            if provisioning.failure != nil {
+            if failure != nil {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Retry") {
-                        system.retrySetup()
+                        creation.start()
                     }
                 }
             }
         }
-        .alert("Couldn’t Create Container", isPresented: $isPresentingFailure, presenting: provisioning.failure) { _ in
+        .alert("Couldn’t Create Container", isPresented: $isPresentingFailure, presenting: failure) { _ in
             Button("Retry") {
-                system.retrySetup()
+                creation.start()
             }
             Button("Copy Output") {
-                UIPasteboard.general.string = system.consoleText
+                UIPasteboard.general.string = creation.console.text
             }
             Button("Cancel", role: .cancel) {
-                system.cancelSetup()
+                creation.cancel()
             }
         } message: { failure in
             Text(failure)
         }
-        .onChange(of: provisioning.failure, initial: true) { _, failure in
+        .onChange(of: failure, initial: true) { _, failure in
             isPresentingFailure = failure != nil
         }
         .onAppear {
+            let terminal = SetupTerminal(creation: creation, settings: settings)
             terminal.attach()
+            self.terminal = terminal
         }
         .onDisappear {
-            terminal.detach()
+            terminal?.detach()
         }
     }
 
+    private var failure: String? {
+        if case let .failed(message) = creation.state {
+            return message
+        }
+        return nil
+    }
+
     private var backgroundColor: Color {
-        if let terminalColor = terminal.backgroundColor {
+        if let terminalColor = terminal?.backgroundColor {
             return Color(terminalColor)
         }
         return Color(uiColor: .systemBackground)
@@ -78,27 +88,30 @@ private final class SetupTerminal {
     let state: TerminalViewState
     let surfaceView: TerminalSurfaceView.SurfaceView
 
-    private(set) var hasVisibleOutput = LinuxSystem.shared.hasConsoleOutput
+    private(set) var hasVisibleOutput: Bool
     private(set) var backgroundColor: TerminalColor?
 
+    @ObservationIgnored private let console: ConsoleBuffer
     @ObservationIgnored private let session: InMemoryTerminalSession
     @ObservationIgnored private let extras: TerminalExtras
     @ObservationIgnored private var subscription: UUID?
     @ObservationIgnored private var cancellables: Set<AnyCancellable> = []
 
-    init() {
+    init(creation: ContainerCreation, settings: AppSettings) {
+        console = creation.console
+        hasVisibleOutput = !creation.console.chunks.isEmpty
         session = InMemoryTerminalSession(
             write: { _ in },
             resize: { viewport in
                 Task { @MainActor in
-                    LinuxSystem.shared.resizeSetupTerminal(columns: viewport.columns, rows: viewport.rows)
+                    creation.resizeTerminal(columns: viewport.columns, rows: viewport.rows)
                 }
             }
         )
         state = TerminalViewState(
             configSource: .none,
-            theme: TerminalAppearance.theme(),
-            terminalConfiguration: TerminalAppearance.fontConfiguration()
+            theme: TerminalAppearance.theme(settings),
+            terminalConfiguration: TerminalAppearance.fontConfiguration(settings)
         )
         state.configuration = TerminalSurfaceOptions(backend: .inMemory(session))
         extras = TerminalExtras(state: state)
@@ -118,7 +131,7 @@ private final class SetupTerminal {
 
     func attach() {
         let session = session
-        subscription = LinuxSystem.shared.subscribeConsole { [weak self] data in
+        subscription = console.subscribe { [weak self] data in
             session.receive(data)
             if self?.hasVisibleOutput == false {
                 self?.hasVisibleOutput = true
@@ -127,7 +140,7 @@ private final class SetupTerminal {
     }
 
     func detach() {
-        LinuxSystem.shared.unsubscribeConsole(subscription!)
+        console.unsubscribe(subscription!)
         subscription = nil
         surfaceView.setSurfaceVisible(false)
     }

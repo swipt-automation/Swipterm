@@ -4,8 +4,12 @@ import SwiftUI
 import UIKit
 
 struct TerminalContainerView: View {
-    private let system = LinuxSystem.shared
     let sessionManager: TerminalSessionManager
+
+    private var system: LinuxSystem {
+        sessionManager.services.system
+    }
+
     @Binding var showSettings: Bool
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -315,8 +319,12 @@ private struct TerminalSplitViewRepresentable: UIViewControllerRepresentable {
 }
 
 private struct TerminalDetailView: View {
-    private let system = LinuxSystem.shared
     let sessionManager: TerminalSessionManager
+
+    private var system: LinuxSystem {
+        sessionManager.services.system
+    }
+
     let splitState: TerminalSplitPresentationState
     let onSetupCallbacks: (TerminalSession) -> Void
 
@@ -333,7 +341,7 @@ private struct TerminalDetailView: View {
         .modifier(HorizontalBarsOnlyModifier())
         .sheet(isPresented: Bindable(splitState).isShortcutsPresented) {
             NavigationStack {
-                ManageShortcutsView()
+                ManageShortcutsView(services: sessionManager.services)
             }
         }
     }
@@ -386,7 +394,7 @@ private struct TerminalDetailView: View {
                             } label: {
                                 Label("New Terminal", systemImage: "plus")
                             }
-                            ForEach(AppSettings.shared.shortcuts) { shortcut in
+                            ForEach(sessionManager.services.settings.shortcuts) { shortcut in
                                 Button {
                                     sessionManager.addSession(shortcut: shortcut)
                                 } label: {

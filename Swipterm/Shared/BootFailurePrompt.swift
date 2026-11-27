@@ -2,7 +2,7 @@ import SwiftUI
 import SwiptermKit
 
 struct BootFailurePromptModifier: ViewModifier {
-    private let system = LinuxSystem.shared
+    @Environment(LinuxSystem.self) private var system
 
     func body(content: Content) -> some View {
         content
@@ -23,9 +23,12 @@ private struct BootFailureSheet: View {
         case kernels
         case containers
         case createContainer
+        case creation(String)
     }
 
     let failure: LinuxSystem.BootFailure
+
+    @Environment(ContainerStore.self) private var store
 
     @State private var path: [Route] = []
     @State private var formHeight: CGFloat?
@@ -37,10 +40,11 @@ private struct BootFailureSheet: View {
     @State private var isImportingContainer = false
 
     private var activeDetents: Set<PresentationDetent> {
-        let height = switch path.last {
+        let height: CGFloat? = switch path.last {
         case .kernels: kernelsHeight
         case .containers: containersHeight
         case .createContainer: createContainerHeight
+        case .creation: UIScreen.main.bounds.height
         case nil: formHeight
         }
         if let height {
@@ -87,12 +91,29 @@ private struct BootFailureSheet: View {
                         path.append(.createContainer)
                     } onImport: {
                         isImportingContainer = true
+                    } onOpenCreation: { creation in
+                        path.append(.creation(creation.id))
                     }
                     .modifier(FormHeightReaderModifier(formHeight: $containersHeight, navBarHeight: $navBarHeight))
-                    .modifier(ContainerImporterModifier(isPresented: $isImportingContainer))
+                    .modifier(ContainerImporterModifier(isPresented: $isImportingContainer) { creation in
+                        path.append(.creation(creation.id))
+                    })
                 case .createContainer:
-                    SetupView(draft: $newContainerDraft)
-                        .modifier(FormHeightReaderModifier(formHeight: $createContainerHeight, navBarHeight: $navBarHeight))
+                    SetupView(draft: $newContainerDraft) { creation in
+                        newContainerDraft = SetupDraft()
+                        path = path.dropLast() + [.creation(creation.id)]
+                    }
+                    .modifier(FormHeightReaderModifier(formHeight: $createContainerHeight, navBarHeight: $navBarHeight))
+                case let .creation(id):
+                    if let creation = store.creations.first(where: { $0.id == id }) {
+                        ProvisioningView(creation: creation)
+                            .id(creation.attempt)
+                    }
+                }
+            }
+            .onChange(of: store.creations.map(\.id)) { _, ids in
+                if case let .creation(id) = path.last, !ids.contains(id) {
+                    path.removeLast()
                 }
             }
         }
@@ -105,11 +126,13 @@ private struct BootFailureSheet: View {
 private struct BootRecoveryKernelsView: View {
     let releases: [String]
 
+    @Environment(LinuxSystem.self) private var system
+
     var body: some View {
         Form {
             ForEach(releases, id: \.self) { release in
                 Button {
-                    LinuxSystem.shared.restart(kernel: .release(release))
+                    system.restart(kernel: .release(release))
                 } label: {
                     Text(verbatim: release)
                 }
@@ -125,18 +148,20 @@ private struct BootRecoveryKernelsView: View {
 private struct BootRecoveryContainersView: View {
     let onCreate: () -> Void
     let onImport: () -> Void
+    let onOpenCreation: (ContainerCreation) -> Void
 
-    private let system = LinuxSystem.shared
+    @Environment(LinuxSystem.self) private var system
+    @Environment(ContainerStore.self) private var store
 
     var body: some View {
         Form {
-            ContainerListSection(onCreate: onCreate, onImport: onImport) { container in
+            ContainerListSection(onCreate: onCreate, onImport: onImport, onOpenCreation: onOpenCreation) { container in
                 Button {
                     system.activate(container)
                 } label: {
                     Text(verbatim: container.metadata.name)
                 }
-                .disabled(container.id == system.activeContainerID)
+                .disabled(container.id == store.activeContainerID)
             }
         }
         .contentMargins(.top, 0, for: .scrollContent)

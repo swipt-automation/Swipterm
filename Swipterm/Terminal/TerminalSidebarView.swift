@@ -51,7 +51,7 @@ struct TerminalSidebarView: View {
                         } label: {
                             Label("New Terminal", systemImage: "plus")
                         }
-                        ForEach(AppSettings.shared.shortcuts) { shortcut in
+                        ForEach(sessionManager.services.settings.shortcuts) { shortcut in
                             Button {
                                 sessionManager.addSession(shortcut: shortcut)
                                 onSelectSession()
