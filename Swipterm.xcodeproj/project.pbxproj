@@ -573,7 +573,7 @@
 			repositoryURL = "https://github.com/swipt-automation/SwiptermKit";
 			requirement = {
 				kind = upToNextMinorVersion;
-				minimumVersion = 0.2.2026112702;
+				minimumVersion = 0.2.2026112703;
 			};
 		};
 		5D0000000000000000000A06 /* XCRemoteSwiftPackageReference "GRDB" */ = {

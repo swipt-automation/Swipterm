@@ -66,6 +66,11 @@ struct SettingsView: View {
                         ContainerCreationLabel(creation: creation)
                     }
                 }
+                Section("Statistics") {
+                    NavigationLink("Power Usage") {
+                        PowerUsageView()
+                    }
+                }
                 Section("Terminal") {
                     NavigationLink("Ghostty Configuration") {
                         GhosttyConfigurationView(settings: settings)

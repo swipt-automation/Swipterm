@@ -33,6 +33,8 @@ final class LinuxSystem {
     static let loginTimeout = Duration.seconds(300)
     private static let haltReasonTimeout = Duration.seconds(5)
     private static let maxBootReboots = 2
+    private static let usageCheckpointInterval = Duration.seconds(120)
+    private static let usageCheckpointMinimumCPUNanoseconds: UInt64 = 100_000_000
 
     private(set) var state: State = .checking {
         didSet {
@@ -60,8 +62,11 @@ final class LinuxSystem {
     private var generation: UInt64 = 0
     private var activeTask: Task<Void, Never>?
     private var pendingTeardown: Task<Void, Never>?
+    private var usageSamplingTask: Task<Void, Never>?
+    private var pendingUsageFlush: Task<Void, Never>?
     private var isInBackground = false
     private var isSuspended = false
+    private var suspendedAt: Date?
     private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
 
     @ObservationIgnored private let store: ContainerStore
@@ -70,6 +75,7 @@ final class LinuxSystem {
     @ObservationIgnored private let clipboard: HostClipboard
     @ObservationIgnored private let pasteStaging: HostPasteStaging
     @ObservationIgnored private let catalog: LinuxDistributionCatalogStore
+    @ObservationIgnored private let powerUsage: PowerUsageStore
 
     init(
         store: ContainerStore,
@@ -77,7 +83,8 @@ final class LinuxSystem {
         location: HostLocation,
         clipboard: HostClipboard,
         pasteStaging: HostPasteStaging,
-        catalog: LinuxDistributionCatalogStore
+        catalog: LinuxDistributionCatalogStore,
+        powerUsage: PowerUsageStore
     ) {
         self.store = store
         self.settings = settings
@@ -85,9 +92,11 @@ final class LinuxSystem {
         self.clipboard = clipboard
         self.pasteStaging = pasteStaging
         self.catalog = catalog
+        self.powerUsage = powerUsage
         #if SWIPTERM_STORE_SCREENSHOTS && targetEnvironment(simulator)
             state = StoreScreenshot.current == .setup ? .setup : .running
         #else
+            isInBackground = UIApplication.shared.applicationState == .background
             observeApplicationLifecycle()
         #endif
     }
@@ -346,26 +355,39 @@ final class LinuxSystem {
         }
     }
 
-    private func detachRuntimeForShutdown() -> LinuxRuntime? {
+    private func detachRuntimeForShutdown() -> (runtime: LinuxRuntime, isBackground: Bool)? {
         onWillShutdown?()
+        usageSamplingTask?.cancel()
+        usageSamplingTask = nil
         let current = runtime
+        let wasBackground = isInBackground
         runtime = nil
         runtimeGPUMode = nil
         if let current {
             store.runtimeDidStop()
             clipboard.detach(from: current)
             pasteStaging.detach(from: current)
+            return (current, wasBackground)
         }
-        return current
+        return nil
     }
 
-    private func shutDownRuntime(_ target: LinuxRuntime) async {
+    private func shutDownRuntime(_ target: (runtime: LinuxRuntime, isBackground: Bool), collectUsage: Bool = true) async {
+        await pendingUsageFlush?.value
+        var sampleDate = Date()
         if isSuspended {
+            if let suspendedAt {
+                sampleDate = suspendedAt
+            }
             isSuspended = false
-            target.resume()
+            suspendedAt = nil
+            target.runtime.resume()
+        }
+        if collectUsage, let samples = try? await target.runtime.collectProcessEnergy(minimumCPUNanoseconds: 0), !samples.isEmpty {
+            powerUsage.record(samples, isBackground: target.isBackground, at: sampleDate)
         }
         await Task.detached {
-            target.shutdown()
+            target.runtime.shutdown()
         }.value
         releaseMachine()
     }
@@ -376,15 +398,59 @@ final class LinuxSystem {
         }
     }
 
-    private func tearDownInBackground(_ target: LinuxRuntime?) {
+    private func tearDownInBackground(_ target: (runtime: LinuxRuntime, isBackground: Bool)?, collectUsage: Bool = true) {
         if let target {
             let previousTeardown = pendingTeardown
             pendingTeardown = Task {
                 await previousTeardown?.value
-                await shutDownRuntime(target)
+                await shutDownRuntime(target, collectUsage: collectUsage)
             }
         }
         store.emptyTrash(after: pendingTeardown)
+    }
+
+    @discardableResult
+    private func enqueuePowerUsageFlush(isBackground: Bool, minimumCPUNanoseconds: UInt64 = 0, at date: Date = Date()) -> Task<Void, Never> {
+        let previous = pendingUsageFlush
+        let currentRuntime = runtime
+        let suspended = isSuspended
+        let task = Task {
+            await previous?.value
+            guard let currentRuntime, !suspended else { return }
+            if let samples = try? await currentRuntime.collectProcessEnergy(minimumCPUNanoseconds: minimumCPUNanoseconds), !samples.isEmpty {
+                powerUsage.record(samples, isBackground: isBackground, at: date)
+            }
+        }
+        pendingUsageFlush = task
+        return task
+    }
+
+    func flushPowerUsage(minimumCPUNanoseconds: UInt64 = 0) async {
+        await enqueuePowerUsageFlush(isBackground: isInBackground, minimumCPUNanoseconds: minimumCPUNanoseconds).value
+    }
+
+    func resetPowerUsage() async {
+        let previous = pendingUsageFlush
+        let task = Task {
+            await previous?.value
+            if let currentRuntime = runtime, !isSuspended {
+                _ = try? await currentRuntime.collectProcessEnergy(minimumCPUNanoseconds: 0)
+            }
+            powerUsage.reset()
+        }
+        pendingUsageFlush = task
+        await task.value
+    }
+
+    private func startUsageSampling() {
+        usageSamplingTask?.cancel()
+        usageSamplingTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.usageCheckpointInterval, tolerance: .seconds(30))
+                guard !Task.isCancelled else { return }
+                await flushPowerUsage(minimumCPUNanoseconds: Self.usageCheckpointMinimumCPUNanoseconds)
+            }
+        }
     }
 
     private func startRuntime(
@@ -456,7 +522,7 @@ final class LinuxSystem {
             throw error
         }
         guard self.generation == generation else {
-            tearDownInBackground(bootedRuntime)
+            tearDownInBackground((bootedRuntime, isInBackground), collectUsage: false)
             throw CancellationError()
         }
         runtime = bootedRuntime
@@ -479,6 +545,7 @@ final class LinuxSystem {
             try await bootRoot(container, kernel: kernel, generation: generation)
             store.runtime = runtime
             state = .running
+            startUsageSampling()
             completeRunningWaiters()
         } catch {
             guard self.generation == generation else { return }
@@ -601,9 +668,14 @@ final class LinuxSystem {
         location.onBackgroundKeepAliveChange = {
             if self.location.isKeepingBackgroundAlive {
                 if self.isSuspended {
+                    let sampleDate = self.suspendedAt
                     self.isSuspended = false
+                    self.suspendedAt = nil
                     self.runtime?.resume()
                     self.auxiliaryRuntime?.resume()
+                    if let sampleDate {
+                        self.enqueuePowerUsageFlush(isBackground: true, at: sampleDate)
+                    }
                 }
             } else if self.isInBackground, self.backgroundTaskID == .invalid {
                 self.suspendRuntimeIfNeeded()
@@ -612,8 +684,10 @@ final class LinuxSystem {
     }
 
     private func handleDidEnterBackground() {
+        let wasInBackground = isInBackground
         isInBackground = true
         LinuxRuntime.suspendGPU()
+        enqueuePowerUsageFlush(isBackground: wasInBackground)
         guard backgroundTaskID == .invalid else { return }
         backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "Swipterm.LinuxRuntime") {
             MainActor.assumeIsolated {
@@ -629,19 +703,29 @@ final class LinuxSystem {
     }
 
     private func handleWillEnterForeground() {
+        let wasInBackground = isInBackground
         isInBackground = false
         endBackgroundTaskIfNeeded()
         LinuxRuntime.resumeGPU()
+        var flushDate = Date()
         if isSuspended {
+            if let suspendedAt {
+                flushDate = suspendedAt
+            }
             isSuspended = false
+            suspendedAt = nil
             runtime?.resume()
             auxiliaryRuntime?.resume()
+        }
+        if wasInBackground {
+            enqueuePowerUsageFlush(isBackground: true, at: flushDate)
         }
     }
 
     private func suspendRuntimeIfNeeded() {
         guard !isSuspended else { return }
         isSuspended = true
+        suspendedAt = Date()
         runtime?.suspend()
         auxiliaryRuntime?.suspend()
     }

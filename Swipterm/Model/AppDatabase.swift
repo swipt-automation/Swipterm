@@ -46,5 +46,13 @@ enum AppDatabase {
             t.primaryKey("name", .text)
             t.column("data", .blob).notNull()
         }
+        try db.create(table: "power_usage", options: .withoutRowID) { t in
+            t.column("bucket", .integer).notNull()
+            t.column("isBackground", .integer).notNull()
+            t.column("process", .text).notNull()
+            t.column("energyNanojoules", .integer).notNull()
+            t.column("cpuMicroseconds", .integer).notNull()
+            t.primaryKey(["bucket", "isBackground", "process"])
+        }
     }
 }

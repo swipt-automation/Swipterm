@@ -15,6 +15,7 @@ struct SwiptermApp: App {
             }
             .environment(services.system)
             .environment(services.containers)
+            .environment(services.powerUsage)
             .environment(services.settings)
             .environment(services.location)
             .environment(services.catalog)
