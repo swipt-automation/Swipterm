@@ -48,7 +48,7 @@ struct ContainerView: View {
                     }
                 case .entered:
                     LabeledContent("Status") {
-                        ContainerOccupancyText(occupancy: occupancy)
+                        Text("In Use")
                     }
                 case .exporting, nil:
                     EmptyView()

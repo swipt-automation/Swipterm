@@ -7,34 +7,18 @@ enum ContainerRoute: Hashable {
     case newContainer
 }
 
-struct ContainerListSection<Row: View>: View {
+struct ContainerListSection<Row: View, CreationRow: View>: View {
     let onCreate: () -> Void
     let onImport: () -> Void
-    let onOpenCreation: (ContainerCreation) -> Void
     @ViewBuilder let row: (LinuxContainer) -> Row
+    @ViewBuilder let creationRow: (ContainerCreation) -> CreationRow
 
     @Environment(ContainerStore.self) private var store
 
     var body: some View {
         Section {
             ForEach(store.containers, content: row)
-            ForEach(store.creations) { creation in
-                Button {
-                    onOpenCreation(creation)
-                } label: {
-                    LabeledContent {
-                        if creation.state == .running {
-                            Text("Initializing…")
-                        } else {
-                            Text("Failed")
-                        }
-                    } label: {
-                        Text(verbatim: creation.name)
-                            .lineLimit(1)
-                    }
-                }
-                .foregroundStyle(.primary)
-            }
+            ForEach(store.creations, content: creationRow)
         } header: {
             HStack {
                 Text("Containers")
@@ -61,38 +45,54 @@ struct ContainerLabel: View {
     @Environment(ContainerStore.self) private var store
 
     var body: some View {
-        LabeledContent {
-            ContainerOccupancyText(occupancy: store.occupancy(of: container.id))
-        } label: {
-            HStack(spacing: 8) {
-                Text(verbatim: container.metadata.name)
-                    .lineLimit(1)
-                if container.id == store.activeContainerID {
-                    Text("Active")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.tint)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(.tint.opacity(0.15), in: Capsule())
-                        .fixedSize()
+        HStack(spacing: 8) {
+            Text(verbatim: container.metadata.name)
+                .lineLimit(1)
+            if container.id == store.activeContainerID {
+                ContainerBadge(title: "Active", foreground: .tint, background: .tint.opacity(0.15))
+            } else {
+                switch store.occupancy(of: container.id) {
+                case .mounted:
+                    ContainerBadge(title: "Mounted", foreground: .secondary, background: .gray.opacity(0.2))
+                case .entered:
+                    ContainerBadge(title: "In Use", foreground: .secondary, background: .gray.opacity(0.2))
+                case .exporting, nil:
+                    EmptyView()
                 }
             }
         }
     }
 }
 
-struct ContainerOccupancyText: View {
-    let occupancy: ContainerOccupancy?
+struct ContainerCreationLabel: View {
+    let creation: ContainerCreation
 
     var body: some View {
-        switch occupancy {
-        case .mounted:
-            Text("Mounted")
-        case .entered:
-            Text("In Use")
-        case .exporting, nil:
-            EmptyView()
+        HStack(spacing: 8) {
+            Text(verbatim: creation.name)
+                .lineLimit(1)
+            if creation.state == .running {
+                ContainerBadge(title: "Initializing…", foreground: .secondary, background: .gray.opacity(0.2))
+            } else {
+                ContainerBadge(title: "Failed", foreground: .red, background: .red.opacity(0.15))
+            }
         }
+    }
+}
+
+private struct ContainerBadge<Foreground: ShapeStyle, Background: ShapeStyle>: View {
+    let title: LocalizedStringKey
+    let foreground: Foreground
+    let background: Background
+
+    var body: some View {
+        Text(title)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(foreground)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(background, in: Capsule())
+            .fixedSize()
     }
 }
 

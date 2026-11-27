@@ -57,11 +57,13 @@ struct SettingsView: View {
                     path.append(.newContainer)
                 } onImport: {
                     isImportingContainer = true
-                } onOpenCreation: { creation in
-                    path.append(.creation(creation.id))
                 } row: { container in
                     NavigationLink(value: ContainerRoute.container(container.id)) {
                         ContainerLabel(container: container)
+                    }
+                } creationRow: { creation in
+                    NavigationLink(value: ContainerRoute.creation(creation.id)) {
+                        ContainerCreationLabel(creation: creation)
                     }
                 }
                 Section("Terminal") {

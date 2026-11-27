@@ -155,13 +155,20 @@ private struct BootRecoveryContainersView: View {
 
     var body: some View {
         Form {
-            ContainerListSection(onCreate: onCreate, onImport: onImport, onOpenCreation: onOpenCreation) { container in
+            ContainerListSection(onCreate: onCreate, onImport: onImport) { container in
                 Button {
                     system.activate(container)
                 } label: {
                     Text(container.metadata.name)
                 }
                 .disabled(container.id == store.activeContainerID)
+            } creationRow: { creation in
+                Button {
+                    onOpenCreation(creation)
+                } label: {
+                    ContainerCreationLabel(creation: creation)
+                }
+                .foregroundStyle(.primary)
             }
         }
         .contentMargins(.top, 0, for: .scrollContent)
