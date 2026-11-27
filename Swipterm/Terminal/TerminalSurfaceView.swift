@@ -94,6 +94,7 @@ struct TerminalSurfaceView: View {
         }
 
         private static let accessoryPasteActionID = UIAction.Identifier("swipterm.accessory.paste")
+        private static let accessoryArrowDownActionID = UIAction.Identifier("swipterm.accessory.arrowDown")
         private static let accessoryPreKeyActionID = UIAction.Identifier("swipterm.accessory.preKey")
         private static let accessoryPostKeyActionID = UIAction.Identifier("swipterm.accessory.postKey")
         private static let touchPasteActionID = UIAction.Identifier("terminal.paste")
@@ -110,6 +111,12 @@ struct TerminalSurfaceView: View {
             TerminalInputAccessoryItem.alt.title,
             TerminalInputAccessoryItem.command.title,
         ].compactMap(\.self))
+        private static let arrowAccessoryKeys: [String: TerminalKey] = Dictionary(uniqueKeysWithValues: [
+            (TerminalInputAccessoryItem.arrowLeft.title, TerminalKey.arrowLeft),
+            (TerminalInputAccessoryItem.arrowUp.title, TerminalKey.arrowUp),
+            (TerminalInputAccessoryItem.arrowDown.title, TerminalKey.arrowDown),
+            (TerminalInputAccessoryItem.arrowRight.title, TerminalKey.arrowRight),
+        ].compactMap { title, key in title.map { ($0, key) } })
 
         var inMemorySession: InMemoryTerminalSession?
         var readOutputActivity: (() -> OutputActivitySnapshot)?
@@ -120,6 +127,11 @@ struct TerminalSurfaceView: View {
         private var needsFocusSync = false
         private var lastDirectTapPoint: CGPoint?
         private var pendingKeyboardToggleTask: Task<Void, Never>?
+        private var accessoryArrowRepeatTask: Task<Void, Never>?
+        private var accessoryArrowDidRepeat = false
+        private var floatingCursorAnchor: CGPoint?
+        private var floatingCursorModifiers: TerminalInputModifiers?
+        private var floatingCursorDidMove = false
         private lazy var dropHandler = SurfaceDropDelegate(surfaceView: self)
 
         private weak var systemInputDelegate: (any UITextInputDelegate)?
@@ -160,8 +172,16 @@ struct TerminalSurfaceView: View {
         }
 
         override func willMove(toWindow newWindow: UIWindow?) {
-            if newWindow == nil, wantsFocus, isFirstResponder {
-                needsFocusSync = true
+            if newWindow == nil {
+                accessoryArrowRepeatTask?.cancel()
+                accessoryArrowRepeatTask = nil
+                accessoryArrowDidRepeat = false
+                floatingCursorAnchor = nil
+                floatingCursorModifiers = nil
+                floatingCursorDidMove = false
+                if wantsFocus, isFirstResponder {
+                    needsFocusSync = true
+                }
             }
             super.willMove(toWindow: newWindow)
         }
@@ -191,6 +211,12 @@ struct TerminalSurfaceView: View {
         override func resignFirstResponder() -> Bool {
             let resigned = super.resignFirstResponder()
             if resigned {
+                accessoryArrowRepeatTask?.cancel()
+                accessoryArrowRepeatTask = nil
+                accessoryArrowDidRepeat = false
+                floatingCursorAnchor = nil
+                floatingCursorModifiers = nil
+                floatingCursorDidMove = false
                 dropTypedText()
             }
             return resigned
@@ -489,6 +515,76 @@ struct TerminalSurfaceView: View {
                             }
                             paste(nil)
                         }, for: .touchUpInside)
+                    }
+                } else if let label, let arrowKey = Self.arrowAccessoryKeys[label] {
+                    var hasCustomAction = false
+                    var existingActions: [UIAction] = []
+                    button.enumerateEventHandlers { action, _, event, _ in
+                        guard let action else { return }
+                        if action.identifier == Self.accessoryArrowDownActionID {
+                            hasCustomAction = true
+                        } else if event.contains(.touchUpInside) {
+                            existingActions.append(action)
+                        }
+                    }
+                    if !hasCustomAction {
+                        for action in existingActions {
+                            button.removeAction(action, for: .touchUpInside)
+                        }
+                        button.addAction(UIAction(identifier: Self.accessoryArrowDownActionID) { [weak self, weak button] _ in
+                            guard let self, let button else { return }
+                            accessoryArrowRepeatTask?.cancel()
+                            accessoryArrowDidRepeat = false
+                            accessoryArrowRepeatTask = Task { [weak self, weak button] in
+                                try? await Task.sleep(for: .milliseconds(350))
+                                guard !Task.isCancelled,
+                                      let self,
+                                      let button,
+                                      button.isTracking,
+                                      button.isTouchInside,
+                                      window != nil
+                                else { return }
+                                accessoryArrowDidRepeat = true
+                                let modifiers = currentStickyModifiers()
+                                while !Task.isCancelled,
+                                      button.isTracking,
+                                      button.isTouchInside,
+                                      window != nil
+                                {
+                                    if markedRange != nil {
+                                        unmarkText()
+                                    }
+                                    _ = withSuperInput { _ = sendKey(arrowKey, modifiers: modifiers) }
+                                    forgetTypedText()
+                                    try? await Task.sleep(for: .milliseconds(50))
+                                }
+                            }
+                        }, for: .touchDown)
+                        button.addAction(UIAction { [weak self] _ in
+                            guard let self else { return }
+                            let shouldSendTap = !accessoryArrowDidRepeat
+                            accessoryArrowRepeatTask?.cancel()
+                            accessoryArrowRepeatTask = nil
+                            accessoryArrowDidRepeat = false
+                            if shouldSendTap {
+                                if markedRange != nil {
+                                    unmarkText()
+                                }
+                                _ = withSuperInput { _ = sendKey(arrowKey) }
+                                forgetTypedText()
+                            }
+                        }, for: .touchUpInside)
+                        button.addAction(UIAction { [weak self] _ in
+                            guard let self else { return }
+                            accessoryArrowRepeatTask?.cancel()
+                            accessoryArrowRepeatTask = nil
+                        }, for: .touchDragExit)
+                        button.addAction(UIAction { [weak self] _ in
+                            guard let self else { return }
+                            accessoryArrowRepeatTask?.cancel()
+                            accessoryArrowRepeatTask = nil
+                            accessoryArrowDidRepeat = false
+                        }, for: [.touchUpOutside, .touchCancel])
                     }
                 } else if let label, !Self.modifierAccessoryLabels.contains(label) {
                     var hasWrappedActions = false
@@ -904,6 +1000,88 @@ struct TerminalSurfaceView: View {
 
         override func characterRange(at _: CGPoint) -> UITextRange? {
             nil
+        }
+
+        @objc(beginFloatingCursorAtPoint:)
+        func beginFloatingCursor(at point: CGPoint) {
+            floatingCursorAnchor = point
+            floatingCursorModifiers = nil
+            floatingCursorDidMove = false
+        }
+
+        @objc(updateFloatingCursorAtPoint:)
+        func updateFloatingCursor(at point: CGPoint) {
+            guard markedRange == nil else {
+                floatingCursorAnchor = point
+                floatingCursorModifiers = nil
+                return
+            }
+            guard var anchor = floatingCursorAnchor else {
+                floatingCursorAnchor = point
+                return
+            }
+            let baseRect = super.caretRect(for: super.beginningOfDocument)
+            let stepX = max(baseRect.width, 9)
+            let stepY = max(baseRect.height, 14)
+            let dx = point.x - anchor.x
+            let dy = point.y - anchor.y
+            let normX = abs(dx) / stepX
+            let normY = abs(dy) / stepY
+            guard normX >= 1 || normY >= 1 else { return }
+
+            let modifiers = floatingCursorModifiers ?? {
+                let captured = currentStickyModifiers()
+                floatingCursorModifiers = captured
+                return captured
+            }()
+
+            if normX >= normY {
+                let steps = Int((dx / stepX).rounded(.towardZero))
+                guard steps != 0 else { return }
+                let key: TerminalKey = steps > 0 ? .arrowRight : .arrowLeft
+                for _ in 0 ..< abs(steps) {
+                    _ = withSuperInput { _ = sendKey(key, modifiers: modifiers) }
+                }
+                floatingCursorDidMove = true
+                anchor.x += CGFloat(steps) * stepX
+                anchor.y = point.y
+            } else {
+                let steps = Int((dy / stepY).rounded(.towardZero))
+                guard steps != 0 else { return }
+                let key: TerminalKey = steps > 0 ? .arrowDown : .arrowUp
+                for _ in 0 ..< abs(steps) {
+                    _ = withSuperInput { _ = sendKey(key, modifiers: modifiers) }
+                }
+                floatingCursorDidMove = true
+                anchor.y += CGFloat(steps) * stepY
+                anchor.x = point.x
+            }
+            floatingCursorAnchor = anchor
+        }
+
+        @objc(endFloatingCursor)
+        func endFloatingCursor() {
+            let didMove = floatingCursorDidMove
+            floatingCursorAnchor = nil
+            floatingCursorModifiers = nil
+            floatingCursorDidMove = false
+            if didMove {
+                forgetTypedText()
+            }
+        }
+
+        private func currentStickyModifiers() -> TerminalInputModifiers {
+            var modifiers: TerminalInputModifiers = []
+            if stickyActivation(for: .ctrl) != .inactive {
+                modifiers.insert(.ctrl)
+            }
+            if stickyActivation(for: .alt) != .inactive {
+                modifiers.insert(.alt)
+            }
+            if stickyActivation(for: .command) != .inactive {
+                modifiers.insert(.super_)
+            }
+            return modifiers
         }
 
         fileprivate func forgetTypedText() {
