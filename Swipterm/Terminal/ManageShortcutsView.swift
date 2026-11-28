@@ -161,11 +161,8 @@ private struct ShortcutEditorView: View {
                     .autocorrectionDisabled()
             }
             Section("Command") {
-                TextEditor(text: $shortcut.command)
-                    .font(.body.monospaced())
+                CodeEditor(text: $shortcut.command, textStyle: .body)
                     .frame(minHeight: 120)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
             }
         }
         .navigationTitle(isNew ? "New Shortcut" : "Edit Shortcut")

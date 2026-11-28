@@ -85,10 +85,7 @@ private struct PublicKeySheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextEditor(text: $text)
-                        .font(.body.monospaced())
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
+                    CodeEditor(text: $text, textStyle: .body)
                         .frame(minHeight: 180)
                         .overlay(alignment: .topLeading) {
                             if text.isEmpty {

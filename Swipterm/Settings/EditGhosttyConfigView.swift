@@ -18,10 +18,7 @@ struct EditGhosttyConfigView: View {
     }
 
     var body: some View {
-        TextEditor(text: $content)
-            .font(.system(.caption2, design: .monospaced))
-            .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
+        CodeEditor(text: $content, textStyle: .caption2)
             .task(id: content) {
                 try? await Task.sleep(for: .milliseconds(300))
                 guard !Task.isCancelled else { return }
