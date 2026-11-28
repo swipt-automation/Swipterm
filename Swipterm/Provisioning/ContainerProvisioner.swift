@@ -712,10 +712,6 @@ nonisolated enum ContainerProvisioner {
             fi
         fi
         join_group "$group"
-        for gpu_group in video render; do
-            ensure_group "$gpu_group"
-            join_group "$gpu_group"
-        done
         if [ -n "${SWIPTERM_PASSWORD:-}" ]; then
             printf '%s:%s\n' "$user" "$SWIPTERM_PASSWORD" | chpasswd
         elif have usermod; then

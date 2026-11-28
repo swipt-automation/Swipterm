@@ -1,11 +1,7 @@
 import SwiftUI
-import SwiptermKit
 import UIKit
 
 struct SettingsView: View {
-    private static let gpuModes: [GPUMode] = [.automatic] + LinuxRuntime.availableGPUBackends.map(GPUMode.init) + [.disabled]
-
-    @Environment(LinuxSystem.self) private var system
     @Environment(ContainerStore.self) private var store
     @Environment(AppSettings.self) private var settings
     @Environment(HostLocation.self) private var location
@@ -19,23 +15,6 @@ struct SettingsView: View {
         NavigationStack(path: $path) {
             Form {
                 Section("Engine") {
-                    Picker("GPU", selection: $settings.gpuMode) {
-                        ForEach(Self.gpuModes, id: \.self) { mode in
-                            Group {
-                                switch mode {
-                                case .automatic:
-                                    Text("Automatic")
-                                case .moltenVK:
-                                    Text(verbatim: "MoltenVK")
-                                case .kosmicKrisp:
-                                    Text(verbatim: "KosmicKrisp")
-                                case .disabled:
-                                    Text("Disabled")
-                                }
-                            }
-                            .tag(mode)
-                        }
-                    }
                     #if DEBUG || SIDELOAD
                         JITRow()
                     #endif
@@ -46,12 +25,6 @@ struct SettingsView: View {
                             caffeinateToggle
                         }
                     #endif
-                    if let runtimeGPUMode = system.runtimeGPUMode, runtimeGPUMode != settings.gpuMode {
-                        Button("Restart to Apply") {
-                            dismiss()
-                            system.restart()
-                        }
-                    }
                 }
                 ContainerListSection {
                     path.append(.newContainer)

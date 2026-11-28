@@ -1,36 +1,6 @@
 import Foundation
 import GhosttyTheme
 import Observation
-import SwiptermKit
-
-nonisolated enum GPUMode: String, Codable, Hashable, Sendable {
-    case automatic
-    case moltenVK
-    case kosmicKrisp
-    case disabled
-
-    init(_ backend: LinuxRuntime.GPUBackend) {
-        switch backend {
-        case .moltenVK:
-            self = .moltenVK
-        case .kosmicKrisp:
-            self = .kosmicKrisp
-        }
-    }
-
-    var configuration: LinuxRuntime.GPUConfiguration? {
-        switch self {
-        case .automatic:
-            .automatic
-        case .moltenVK:
-            .specific(.moltenVK)
-        case .kosmicKrisp:
-            .specific(.kosmicKrisp)
-        case .disabled:
-            nil
-        }
-    }
-}
 
 @Observable
 final class AppSettings {
@@ -45,7 +15,6 @@ final class AppSettings {
         static let darkConfig = "darkConfig"
         static let fontFamily = "fontFamily"
         static let fontSize = "fontSize"
-        static let gpuMode = "gpuMode"
         static let caffeinateAvailable = "caffeinateAvailable"
         static let caffeinateEnabled = "caffeinateEnabled"
         static let shortcuts = "shortcuts"
@@ -75,10 +44,6 @@ final class AppSettings {
         didSet { saveTerminalAppearance(fontSize, for: Key.fontSize) }
     }
 
-    var gpuMode: GPUMode {
-        didSet { store.set(gpuMode, for: Key.gpuMode) }
-    }
-
     var isCaffeinateAvailable: Bool {
         didSet { store.set(isCaffeinateAvailable, for: Key.caffeinateAvailable) }
     }
@@ -101,7 +66,6 @@ final class AppSettings {
         darkConfig = store.value(String.self, for: Key.darkConfig) ?? ""
         fontFamily = store.value(String.self, for: Key.fontFamily) ?? ""
         fontSize = store.value(Double.self, for: Key.fontSize) ?? 10
-        gpuMode = store.value(GPUMode.self, for: Key.gpuMode) ?? .automatic
         isCaffeinateAvailable = store.value(Bool.self, for: Key.caffeinateAvailable) ?? false
         isCaffeinateEnabled = store.value(Bool.self, for: Key.caffeinateEnabled) ?? false
         shortcuts = store.value([TerminalShortcut].self, for: Key.shortcuts) ?? []

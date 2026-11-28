@@ -47,7 +47,6 @@ final class LinuxSystem {
     var onWillShutdown: (() -> Void)?
 
     private var runtime: LinuxRuntime?
-    private(set) var runtimeGPUMode: GPUMode?
     @ObservationIgnored private var auxiliaryRuntime: LinuxRuntime?
     @ObservationIgnored private var machineBusy = false
     @ObservationIgnored private var machineWaiters: [CheckedContinuation<Void, Never>] = []
@@ -362,7 +361,6 @@ final class LinuxSystem {
         let current = runtime
         let wasBackground = isInBackground
         runtime = nil
-        runtimeGPUMode = nil
         if let current {
             store.runtimeDidStop()
             clipboard.detach(from: current)
@@ -469,7 +467,6 @@ final class LinuxSystem {
         consoleBoot = boot
         let normalizer = ConsoleNewlineNormalizer()
         let metadata = container.metadata
-        let gpuMode = settings.gpuMode
         let commands = HostCommands(system: self, store: store, settings: settings, location: location, catalog: catalog)
         let clipboard = clipboard
         let pasteStaging = pasteStaging
@@ -477,7 +474,6 @@ final class LinuxSystem {
             root: ContainerStore.rootURL(for: container.id),
             kernel: kernel,
             hostname: metadata.name,
-            gpu: gpuMode.configuration,
             consoleOutput: { data in
                 let chunk = normalizer.normalize(data)
                 guard !chunk.isEmpty else { return }
@@ -526,7 +522,6 @@ final class LinuxSystem {
             throw CancellationError()
         }
         runtime = bootedRuntime
-        runtimeGPUMode = gpuMode
         runtimeBoot = boot
         if isSuspended {
             bootedRuntime.suspend()
@@ -686,7 +681,6 @@ final class LinuxSystem {
     private func handleDidEnterBackground() {
         let wasInBackground = isInBackground
         isInBackground = true
-        LinuxRuntime.suspendGPU()
         enqueuePowerUsageFlush(isBackground: wasInBackground)
         guard backgroundTaskID == .invalid else { return }
         backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "Swipterm.LinuxRuntime") {
@@ -706,7 +700,6 @@ final class LinuxSystem {
         let wasInBackground = isInBackground
         isInBackground = false
         endBackgroundTaskIfNeeded()
-        LinuxRuntime.resumeGPU()
         var flushDate = Date()
         if isSuspended {
             if let suspendedAt {
