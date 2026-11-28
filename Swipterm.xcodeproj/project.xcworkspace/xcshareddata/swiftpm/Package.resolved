@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swipt-automation/SwiptermKit",
       "state" : {
-        "revision" : "d0fd0be563e6b55bc4efea16b6f76debc019d2dc",
-        "version" : "0.2.2026112801"
+        "revision" : "39e97d3312a6246dbfed0e221193dc018db9b35a",
+        "version" : "0.2.2026112802"
       }
     }
   ],

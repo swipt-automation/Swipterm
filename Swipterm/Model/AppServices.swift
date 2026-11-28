@@ -22,6 +22,9 @@ final class AppServices {
         fonts = ImportedFontStore(settings: settings)
         containers = ContainerStore(preferences: preferences)
         powerUsage = PowerUsageStore(database: database)
+        #if DEBUG || SIDELOAD
+            jit = SwiptJIT(store: preferences)
+        #endif
         system = LinuxSystem(
             store: containers,
             settings: settings,
@@ -31,8 +34,5 @@ final class AppServices {
             catalog: catalog,
             powerUsage: powerUsage
         )
-        #if DEBUG || SIDELOAD
-            jit = SwiptJIT(store: preferences)
-        #endif
     }
 }
